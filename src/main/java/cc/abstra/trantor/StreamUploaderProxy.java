@@ -30,9 +30,6 @@ import java.util.Enumeration;
 import java.util.List;
 import java.util.Map;
 
-// For good explanations of upload streaming proxies, see:
-//  - http://stackoverflow.com/questions/2471799
-//  - https://github.com/dsmiley/HTTP-Proxy-Servlet
 public class StreamUploaderProxy extends HttpServlet {
 
     static final int DEFAULT_CHUNK_SIZE = 1024;
@@ -60,19 +57,20 @@ public class StreamUploaderProxy extends HttpServlet {
 
         log("POST " + req.getRequestURI() + " --> " + targetUrl.toString());
 
-        URLConnection targetConnection;
+        URLConnection targetConnection = null;
         try {
             targetConnection = targetUrl.openConnection();
             copyRequestHeaders(req, targetConnection);
             //  Note: These headers below would've been sent by default:
             // {
             //   "User-Agent": "Java/1.7.0_17",
-            //   "Host": "localhost:9090",
+            //   "Host": targetUrl.host() & .port(),
             //   "Accept": "text/html, image/gif, image/jpeg, *; q=.2, */*; q=.2",
             //   "Connection": "keep-alive",
             //   "Version": "HTTP/1.1",
             //   "Origin": null
             // }
+            //
             // Note: If you need to rewrite headers, please see:
             //   http://stackoverflow.com/questions/7648872
 
@@ -96,10 +94,18 @@ public class StreamUploaderProxy extends HttpServlet {
 
         } catch (ConnectException e) {
             res.sendError(HttpServletResponse.SC_BAD_GATEWAY);
-        } catch (SocketTimeoutException e){
+        } catch (SocketTimeoutException e) {
             res.sendError(HttpServletResponse.SC_GATEWAY_TIMEOUT);
+        } catch (IOException e) {
+            assert (null != targetConnection);
+            if (HttpServletResponse.SC_INTERNAL_SERVER_ERROR ==
+                    ((HttpURLConnection)targetConnection).getResponseCode()){
+                res.sendError(HttpServletResponse.SC_BAD_GATEWAY);
+            } else {
+                throw e;
+            }
         }
-        // note: the uncaught exception will be shown as "500"
+        // note: the uncaught exceptions will be shown as "500"
 
         // TODO: "cookie"=>"rack.session=… set again in the response
         //TODO: check permissions remotely:
@@ -153,8 +159,9 @@ public class StreamUploaderProxy extends HttpServlet {
             List<String> hValues = responseMap.get(headerName);
             for (String headerValue : hValues) {
                 if (HttpHeaders.integerValuedHeadersLc.contains(headerName.toLowerCase())) {
-                    // In a streaming URLConnection (setDoOutput = true), "Content-Length" is *never* present,
-                    // so the response InputStream would be blocked forever w/o its byte[].length
+                    // In a streaming URLConnection (setDoOutput = true), .getContentLength() is mostly wrong,
+                    // so the HttpServletResponse would be blocked forever.
+                    // The real "Content-Length" comes from .getInputStream()
                     if (headerName.equalsIgnoreCase(HttpHeaders.CONTENT_LENGTH)) {
                         res.setContentLength(streamLength);
                     } else {
