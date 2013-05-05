@@ -58,6 +58,7 @@ public class StreamUploaderProxy extends HttpServlet {
         log("POST " + req.getRequestURI() + " --> " + targetUrl.toString());
 
         URLConnection targetConnection = null;
+
         try {
             targetConnection = targetUrl.openConnection();
             copyRequestHeaders(req, targetConnection);
@@ -75,7 +76,7 @@ public class StreamUploaderProxy extends HttpServlet {
             //   http://stackoverflow.com/questions/7648872
 
             setStreamingMode(req.getContentLength(), targetConnection);
-            targetConnection.setDoOutput(true);
+            targetConnection.setDoOutput(true);  //implicitly sets the request method to POST
             targetConnection.setReadTimeout(FIVE_MIN);
 
             try (InputStream clientRequestIS = req.getInputStream()){
@@ -97,21 +98,25 @@ public class StreamUploaderProxy extends HttpServlet {
         } catch (SocketTimeoutException e) {
             res.sendError(HttpServletResponse.SC_GATEWAY_TIMEOUT);
         } catch (IOException e) {
-            assert (null != targetConnection);
-            if (HttpServletResponse.SC_INTERNAL_SERVER_ERROR ==
-                    ((HttpURLConnection)targetConnection).getResponseCode()){
+            int responseStatus = 0;
+            if (null != targetConnection) {
+                responseStatus = ((HttpURLConnection)targetConnection).getResponseCode();
+            }
+            if (HttpServletResponse.SC_INTERNAL_SERVER_ERROR == responseStatus){
                 res.sendError(HttpServletResponse.SC_BAD_GATEWAY);
             } else {
                 throw e;
             }
+
         }
         // note: the uncaught exceptions will be shown as "500"
 
-        // TODO: "cookie"=>"rack.session=… set again in the response
+        // TODO: "cookie"=>"rack.session=… set again in the response: log cookie
         //TODO: check permissions remotely:
         //   GET /permissions/upload_doc
         //   GET /permissions/update_doc
         //   statuses: 200, 403
+        //TODO: sanitize input urls
 
     }
 
