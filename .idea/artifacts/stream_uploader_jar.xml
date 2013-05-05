@@ -1,0 +1,9 @@
+<component name="ArtifactManager">
+  <artifact type="jar" name="stream-uploader:jar">
+    <output-path>$PROJECT_DIR$/out/artifacts/stream_uploader_jar</output-path>
+    <root id="archive" name="stream-uploader.jar">
+      <element id="module-output" name="stream-uploader" />
+      <element id="extracted-dir" path="$MAVEN_REPOSITORY$/javax/servlet/servlet-api/2.5/servlet-api-2.5.jar" path-in-jar="/" />
+    </root>
+  </artifact>
+</component>

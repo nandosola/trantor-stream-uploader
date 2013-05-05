@@ -1,0 +1,13 @@
+<component name="ArtifactManager">
+  <artifact type="exploded-war" name="stream-uploader:war exploded">
+    <output-path>$PROJECT_DIR$/target/stream-uploader</output-path>
+    <root id="root">
+      <element id="javaee-facet-resources" facet="stream-uploader/web/Web" />
+      <element id="directory" name="WEB-INF">
+        <element id="directory" name="classes">
+          <element id="module-output" name="stream-uploader" />
+        </element>
+      </element>
+    </root>
+  </artifact>
+</component>

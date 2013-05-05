@@ -1,0 +1,12 @@
+*.DS_Store
+*__MACOSX
+*.class
+target/
+*.swp
+#.*#
+.classpath
+*.iws
+workspace.xml
+tasks.xml
+.idea/libraries
+.idea/dictionaries
