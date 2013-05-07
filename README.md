@@ -47,5 +47,6 @@ After the build process is complete, drop `target/stream-uploader.war` into `$JB
 Licensed under the Apache License, Version 2.0. See LICENSE file for more details.
 
 ### Credits
-The inspiration came from (this StackOverflow post)[http://stackoverflow.com/questions/2471799] and I stole good implementation
- ideas from the (HTTP-Proxy-Servlet)[https://github.com/dsmiley/HTTP-Proxy-Servlet] GitHub project by dsmiley.
+The inspiration came from [this StackOverflow post](http://stackoverflow.com/questions/2471799) and I stole good implementation
+ ideas from the [HTTP-Proxy-Servlet](https://github.com/dsmiley/HTTP-Proxy-Servlet) GitHub project by dsmiley. The `HttpHeaders`
+ class comes from the Guava project and `MockServletInputStream` comes from [two-tiers-utils](https://github.com/DomDerrien/two-tiers-utils)
