@@ -34,7 +34,10 @@ public class StreamUploaderProxy extends HttpServlet {
 
     static final int DEFAULT_CHUNK_SIZE = 1024;
     static final int FIVE_MIN = 300000;  //msec
-    URL targetUrl;
+    private URL targetUrl = null;
+    private String testUrl;  //injected from Mockito test.
+                             // note: Servlets may not have parametrized constructors
+    private boolean containerExists = false;  // again, used for testing
 
     @Override
     public String getServletInfo() {
@@ -44,6 +47,10 @@ public class StreamUploaderProxy extends HttpServlet {
     @Override
     public void init(ServletConfig servletConfig) throws ServletException {
         super.init(servletConfig);
+
+        if (null != servletConfig.getServletContext()){
+            containerExists = true;
+        }
 
         try {
             this.targetUrl = new URL(servletConfig.getInitParameter("targetUri"));
@@ -55,7 +62,12 @@ public class StreamUploaderProxy extends HttpServlet {
     @Override
     public void doPost(HttpServletRequest req, HttpServletResponse res) throws IOException {
 
-        log("POST " + req.getRequestURI() + " --> " + targetUrl.toString());
+        if(containerExists) {  // use container's logging facility
+          log("POST " + req.getRequestURI() + " --> " + targetUrl.toString());
+        } else {  // testing environment
+            if(null == targetUrl)
+                this.targetUrl = new URL(testUrl);
+        }
 
         URLConnection targetConnection = null;
 
@@ -80,15 +92,15 @@ public class StreamUploaderProxy extends HttpServlet {
             targetConnection.setReadTimeout(FIVE_MIN);
 
             try (InputStream clientRequestIS = req.getInputStream()){
-                OutputStream targetConnectionRequestOS = targetConnection.getOutputStream();
+                OutputStream targetRequestOS = targetConnection.getOutputStream();
                 byte[] buffer = new byte[DEFAULT_CHUNK_SIZE]; // Uses only 1KB of memory
                 for (int length = 0; (length = clientRequestIS.read(buffer)) > 0;) {
-                    targetConnectionRequestOS.write(buffer, 0, length);
-                    targetConnectionRequestOS.flush();
+                    targetRequestOS.write(buffer, 0, length);
+                    targetRequestOS.flush();
                 }
             }
-            try (InputStream targetConnectionResponseIS = targetConnection.getInputStream()) {
-                byte[] outBytes = extractByteArray(targetConnectionResponseIS);  // note: byte[] holds max 2 GB (Java default)
+            try (InputStream targetResponseIS = targetConnection.getInputStream()) {
+                byte[] outBytes = extractByteArray(targetResponseIS);  // note: byte[] holds max 2 GB (Java default)
                 copyResponseHeaders(targetConnection, res, outBytes.length);
                 res.getOutputStream().write(outBytes);
             }
@@ -111,12 +123,16 @@ public class StreamUploaderProxy extends HttpServlet {
         }
         // note: the uncaught exceptions will be shown as "500"
 
+        // TODO: sanitize input urls
         // TODO: "cookie"=>"rack.session=… set again in the response: log cookie
-        //TODO: check permissions remotely:
+
+        // Trantor-specific behavior:
+        // TODO: check permissions remotely w/session cookie:
         //   GET /permissions/upload_doc
         //   GET /permissions/update_doc
         //   statuses: 200, 403
-        //TODO: sanitize input urls
+        // TODO: tell Wcamp to move metadata if 201
+        //   PUT /documents/code/:code/metadata
 
     }
 
@@ -152,6 +168,7 @@ public class StreamUploaderProxy extends HttpServlet {
         Map<String,List<String>> responseMap = proxyRes.getHeaderFields();
         String statusLine = proxyRes.getHeaderField(0);
         // i.e. "HTTP/1.1 201 Created"
+        //TODO: 502 if npe
         res.setStatus(Integer.parseInt(statusLine.split(" ")[1]));
 
         for (String headerName : responseMap.keySet()) {
@@ -171,6 +188,8 @@ public class StreamUploaderProxy extends HttpServlet {
                         res.setContentLength(streamLength);
                     } else {
                         res.setIntHeader(headerName, Integer.parseInt(headerValue));
+                        // the only (standard) allowed Integer header is Content-Length
+                        // but maybe the response includes a custom one
                     }
                 } else {
                     res.setHeader(headerName, headerValue);
@@ -189,5 +208,4 @@ public class StreamUploaderProxy extends HttpServlet {
         baos.flush();
         return  baos.toByteArray();
     }
-
 }
