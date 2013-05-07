@@ -127,7 +127,7 @@ public class StreamUploaderProxy extends HttpServlet {
         // TODO: "cookie"=>"rack.session=… set again in the response: log cookie
 
         // Trantor-specific behavior:
-        // TODO: check permissions remotely w/session cookie:
+        // TODO: check permissions remotely w/ headers Cookie or Authorization:
         //   GET /permissions/upload_doc
         //   GET /permissions/update_doc
         //   statuses: 200, 403
