@@ -6,8 +6,8 @@ are no obvious ways to interact with raw requests and responses in this framewor
 just use non-Rack stuff, such as [Goliath](https://github.com/postrank-labs/goliath), Node.js, JavaEE or even the venerable FastCGI.
 
 As a JRuby-friendly way, this project consists of simple Servlet, packaged in a WAR file ready to be deployed in
-[Torquebox](http://torquebox.org/documentation/). The stream is guaranteed to be 1KB wide, so its memory consumption is
-quite ridiculous. And fast.
+[Torquebox](http://torquebox.org/documentation/). The stream is guaranteed to be 1KB wide, so its memory footprint is
+quite ridiculous. And it's fast.
 
 In my case, the motivation came from Trantor, an internal doc archiving system we are developing. Trantor is distributed,
 so the web front-end and API (Sinatra/Rack app) lives in a different server than the file server back-end (another Sinatra/Rack app).
@@ -18,7 +18,7 @@ the limitations of Rack mentioned above, the PUT/POST requests (file creation an
 ### Configure it
 Its configuration is done via `src/main/webapp/web.xml` is simple:
 
-``
+```xml
 ...
   <servlet>
     ...
@@ -28,7 +28,7 @@ Its configuration is done via `src/main/webapp/web.xml` is simple:
     </init-param>
   </servlet>
 ...
-``
+```
 
 The resulting WAR will be deployed at the `/uploader` context. If you wish to change it, then edit `src/main/webapp/jboss-web.xml`.
 
