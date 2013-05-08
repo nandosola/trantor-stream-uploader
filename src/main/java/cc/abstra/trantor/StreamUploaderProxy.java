@@ -16,6 +16,7 @@
 
 package cc.abstra.trantor;
 
+import cc.abstra.trantor.wcamp.CustomHttpHeaders;
 import cc.abstra.trantor.wcamp.WcampClient;
 import cc.abstra.trantor.wcamp.exceptions.WcampConnectionException;
 import cc.abstra.trantor.wcamp.exceptions.WcampRestRequestIOException;
@@ -77,8 +78,8 @@ public class StreamUploaderProxy extends HttpServlet {
                 this.targetUrl = new URL(testUrl);
         }
 
-        if(null != req.getHeader(HttpHeaders.X_TRANTOR_FILE_ID)){
-            this.trantorFileId = req.getHeader(HttpHeaders.X_TRANTOR_FILE_ID);
+        if(null != req.getHeader(CustomHttpHeaders.X_TRANTOR_FILE_ID)){
+            this.trantorFileId = req.getHeader(CustomHttpHeaders.X_TRANTOR_FILE_ID);
             this.uploadComesFromAPI = true;
             WcampClient.TempDoc.verify(trantorFileId);
             // else: 403 -- TempDocumentNotFound

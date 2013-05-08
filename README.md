@@ -19,6 +19,13 @@ the limitations of Rack mentioned above, the PUT/POST requests (file creation an
 Last but not least, I wanted to learn how to use Mockito to test Servlets. I ended up using PowerMockito (PowerMock + Mockito)
 because Mockito by itself won't allow mocking final classes, such as Java's `URL`.
 
+## Caveats
+Please be aware, that there is Trantor-specific code living under `cc.abstra.trantor.wcamp` that takes care of:
+* Document metadata archiving after a successful POST from the API
+* Forwarding the request's OAuth 2.0 credentials to the OmniAuth middleware living in the front-end and processing authorization responses.
+
+Delete it from your copy if you want
+
 ### Configure it
 Its configuration is done via `src/main/webapp/web.xml` is simple:
 

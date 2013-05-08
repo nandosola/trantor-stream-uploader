@@ -114,7 +114,7 @@ public class StreamUploaderProxyTest {
         whenNew(URL.class).withArguments(testUrl).thenReturn(targetUrl);
         when(targetUrl.openConnection()).thenReturn(urlConnection);
 
-        // Ignores HttpHeaders.CONTENT_LENGTH, using request.geyInputStream() byte[] length
+        // Ignores CustomHttpHeaders.CONTENT_LENGTH, using request.geyInputStream() byte[] length
         // See: http://docs.oracle.com/javaee/6/api/javax/servlet/ServletRequest.html#getContentLength()
         when(request.getContentLength()).thenReturn(clientRequestStr.getBytes("UTF-8").length);
 

@@ -14,13 +14,13 @@
  * limitations under the License.
  */
 
-package cc.abstra.trantor.wcamp.exceptions;
+package cc.abstra.trantor.wcamp;
 
 
-public class WcampServerErrorException extends WcampConnectionException {
-    private static final String MSG="Server Error";
+public class CustomHttpHeaders {
 
-    public WcampServerErrorException(int status) {
-        super(MSG, status);
-    }
+    private CustomHttpHeaders() {}
+
+    public static final String X_TRANTOR_FILE_ID = "X-Trantor-File-Id";
+
 }

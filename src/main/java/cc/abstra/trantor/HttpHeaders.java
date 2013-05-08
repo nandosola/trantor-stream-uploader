@@ -198,8 +198,6 @@ public final class HttpHeaders {
     /** The HTTP X-XSS-Protection header field name. */
     public static final String X_XSS_PROTECTION = "X-XSS-Protection";
 
-    public static final String X_TRANTOR_FILE_ID = "X-Trantor-File-Id";
-
     /** These are the "hop-by-hop" headers that should not be copied.
      * http://www.w3.org/Protocols/rfc2616/rfc2616-sec13.html
      */
