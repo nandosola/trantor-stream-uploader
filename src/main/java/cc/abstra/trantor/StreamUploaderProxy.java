@@ -16,6 +16,10 @@
 
 package cc.abstra.trantor;
 
+import cc.abstra.trantor.wcamp.WcampClient;
+import cc.abstra.trantor.wcamp.exceptions.WcampConnectionException;
+import cc.abstra.trantor.wcamp.exceptions.WcampRestRequestIOException;
+
 import javax.servlet.ServletConfig;
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServlet;
@@ -38,6 +42,8 @@ public class StreamUploaderProxy extends HttpServlet {
     private String testUrl;  //injected from Mockito test.
                              // note: Servlets may not have parametrized constructors
     private boolean containerExists = false;  // again, used for testing
+    private String trantorFileId;
+    private boolean uploadComesFromAPI = false;
 
     @Override
     public String getServletInfo() {
@@ -62,6 +68,8 @@ public class StreamUploaderProxy extends HttpServlet {
     @Override
     public void doPost(HttpServletRequest req, HttpServletResponse res) throws IOException {
 
+        WcampClient tempDoc = null;
+
         if(containerExists) {  // use container's logging facility
           log("POST " + req.getRequestURI() + " --> " + targetUrl.toString());
         } else {  // testing environment
@@ -69,8 +77,14 @@ public class StreamUploaderProxy extends HttpServlet {
                 this.targetUrl = new URL(testUrl);
         }
 
-        URLConnection targetConnection = null;
+        if(null != req.getHeader(HttpHeaders.X_TRANTOR_FILE_ID)){
+            this.trantorFileId = req.getHeader(HttpHeaders.X_TRANTOR_FILE_ID);
+            this.uploadComesFromAPI = true;
+            WcampClient.TempDoc.verify(trantorFileId);
+            // else: 403 -- TempDocumentNotFound
+        }
 
+        URLConnection targetConnection = null;
         try {
             targetConnection = targetUrl.openConnection();
             copyRequestHeaders(req, targetConnection);
@@ -105,11 +119,21 @@ public class StreamUploaderProxy extends HttpServlet {
                 res.getOutputStream().write(outBytes);
             }
 
+            if(uploadComesFromAPI){
+                WcampClient.TempDoc.archive(trantorFileId);
+                // 410 -- Gone  tmpcollection expired
+            }
+
         } catch (ConnectException e) {
             res.sendError(HttpServletResponse.SC_BAD_GATEWAY);
         } catch (SocketTimeoutException e) {
             res.sendError(HttpServletResponse.SC_GATEWAY_TIMEOUT);
-        } catch (IOException e) {
+        } catch (WcampConnectionException e){
+            res.sendError(e.errorCode);
+        } catch (WcampRestRequestIOException e){
+            res.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+        }
+        catch (IOException e) {
             int responseStatus = 0;
             if (null != targetConnection) {
                 responseStatus = ((HttpURLConnection)targetConnection).getResponseCode();
@@ -123,16 +147,11 @@ public class StreamUploaderProxy extends HttpServlet {
         }
         // note: the uncaught exceptions will be shown as "500"
 
-        // TODO: sanitize input urls
-        // TODO: "cookie"=>"rack.session=… set again in the response: log cookie
-
         // Trantor-specific behavior:
         // TODO: check permissions remotely w/ headers Cookie or Authorization:
         //   GET /permissions/upload_doc
         //   GET /permissions/update_doc
         //   statuses: 200, 403
-        // TODO: tell Wcamp to move metadata if 201
-        //   PUT /documents/code/:code/metadata
 
     }
 

@@ -16,6 +16,7 @@
 package cc.abstra.trantor;
 
 import org.junit.Before;
+import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.InjectMocks;
@@ -108,7 +109,7 @@ public class StreamUploaderProxyTest {
     }
 
     @Test
-    public void testDoPost() throws Exception {
+    public void testDoSuccessfulPostWithKnownContentLength() throws Exception {
 
         whenNew(URL.class).withArguments(testUrl).thenReturn(targetUrl);
         when(targetUrl.openConnection()).thenReturn(urlConnection);
@@ -176,7 +177,26 @@ public class StreamUploaderProxyTest {
         verify(responseOutputStream).write(aryEq(remoteResponseStr.getBytes()));
     }
 
-    // TODO: test unknown contentLength (-1)
-    // TODO: test error responses
+    @Test
+    @Ignore("TODO")
+    public void testDoSuccessfulPostWithUnknownContentLength() throws Exception {
+    }
+
+    @Test
+    @Ignore("TODO")
+    public void testDoPostWithErrors() throws Exception {
+    }
+
+    @Test
+    @Ignore("TODO")
+    public void testDoSuccessfulPostFromAPI() throws Exception {
+        //test WcampClient
+    }
+
+    @Test
+    @Ignore("TODO")
+    public void testDoPostFromAPIWithErrors() throws Exception {
+        //test WcampClient
+    }
 
 }
