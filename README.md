@@ -14,7 +14,7 @@ In my case, the motivation came from Trantor, an internal doc archiving system w
 so the web front-end and API (Sinatra/Rack app) lives in a different server than the file server back-end (another Sinatra/Rack app).
 The front-end app also hosts a `FileServiceProxy < Sinatra::Base` proxy for the GET, DELETE, OPTIONS and HEAD XMLHttpRequest:s
 coming from the HTML5 client, which uses [jQuery-File-Upload](https://github.com/blueimp/jQuery-File-Upload). Because of
-the limitations of Rack mentioned above, the PUT/POST requests (file creation and versioning) must be routed through the Servlet.
+the limitations of Rack mentioned above, the POST requests (file creation) must be routed through the Servlet.
 
 Last but not least, I wanted to learn how to use Mockito to test Servlets. I ended up using PowerMockito (PowerMock + Mockito)
 because Mockito by itself won't allow mocking final classes, such as Java's `URL`.
