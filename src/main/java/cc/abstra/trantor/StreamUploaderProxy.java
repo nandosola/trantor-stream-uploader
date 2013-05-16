@@ -40,8 +40,6 @@ public class StreamUploaderProxy extends HttpServlet {
     private String testUrl;  //injected from Mockito test.
                              // note: Servlets may not have parametrized constructors
     private boolean containerExists = false;  // again, used for testing
-    private String trantorFileId;
-    private boolean uploadComesFromAPI = false;
 
     @Override
     public String getServletInfo() {
@@ -75,7 +73,8 @@ public class StreamUploaderProxy extends HttpServlet {
     @Override
     public void doPost(HttpServletRequest req, HttpServletResponse res) throws IOException {
 
-        WcampRestResource tempDoc = null;
+        String trantorFileId = null;
+        boolean uploadComesFromAPI = false;
 
         if (!containerExists && null == targetUrl){ // testing environment
             this.targetUrl = new URL(testUrl);
@@ -86,8 +85,8 @@ public class StreamUploaderProxy extends HttpServlet {
             String clientId = req.getHeader(CustomHttpHeaders.X_TRANTOR_CLIENT_ID);
             if (null != clientId){
                 log("Received POST request from API. Client id: "+ clientId);
-                this.trantorFileId = req.getHeader(CustomHttpHeaders.X_TRANTOR_CLIENT_ASSIGNED_FILE_ID);
-                this.uploadComesFromAPI = true;
+                trantorFileId = req.getHeader(CustomHttpHeaders.X_TRANTOR_CLIENT_ASSIGNED_FILE_ID);
+                uploadComesFromAPI = true;
                 // do as asyncTask? WcampTempDoc.verify(trantorFileId);
             } else {
                 // exception: (HttpServletResponse.SC_PRECONDITION_FAILED);
@@ -211,7 +210,8 @@ public class StreamUploaderProxy extends HttpServlet {
 
         for (String headerName : responseMap.keySet()) {
             if (null == headerName ||  // null is the "Status" header. It's been processed already
-                HttpHeaders.hopByHopHeadersLc.contains(headerName.toLowerCase()))
+                HttpHeaders.hopByHopHeadersLc.contains(headerName.toLowerCase()) ||
+                    CustomHttpHeaders.doNotCopyLc.contains(headerName.toLowerCase()))
                 continue;
 
             // Do not use getHeaderField() here: in case of multivalued headers, it returns only the last value!
