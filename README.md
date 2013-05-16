@@ -51,7 +51,7 @@ After the build process is complete, drop `target/stream-uploader.war` into `$JB
 
 ### TO-DO
 * More tests
-* Implement authorization and authentication API
+* Configure JSON error responses in JBoss using the appropriate `ErrorReportValve`
 
 
 ### License

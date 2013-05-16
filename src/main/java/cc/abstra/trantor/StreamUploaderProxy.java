@@ -22,7 +22,6 @@ import cc.abstra.trantor.wcamp.CustomHttpHeaders;
 import cc.abstra.trantor.wcamp.WcampDocumentResource;
 import cc.abstra.trantor.wcamp.WcampPendingDoc;
 import cc.abstra.trantor.wcamp.WcampTempDoc;
-import cc.abstra.trantor.wcamp.exceptions.WcampConnectionException;
 import cc.abstra.trantor.wcamp.exceptions.WcampNotAuthorizedException;
 
 import javax.servlet.AsyncContext;
@@ -115,6 +114,9 @@ public class StreamUploaderProxy extends HttpServlet {
         try {
 
             if (wcampDocument != null) {
+                // This operation won't lock the Servlet's main thread.
+                // It's only a GET,so no response.OutputStream will be opened.
+                // No need for background executor.
                 wcampDocument.authorize();
                 log("Authorized "+wcampDocument.getNeededPerm()+" for session "+wcampDocument.getAuthToken());
             }
@@ -161,12 +163,12 @@ public class StreamUploaderProxy extends HttpServlet {
                 res.getOutputStream().write(outBytes);
             }
         }catch (WcampNotAuthorizedException e){
-                res.sendError(HttpServletResponse.SC_UNAUTHORIZED, "");
+                res.sendError(HttpServletResponse.SC_UNAUTHORIZED);
         } catch (ConnectException e) {
             log("Received unexpected response from "+targetUrl.toString()+": "+e.getCause());
-            res.sendError(HttpServletResponse.SC_BAD_GATEWAY, "");
+            res.sendError(HttpServletResponse.SC_BAD_GATEWAY);
         } catch (SocketTimeoutException e) {
-            res.sendError(HttpServletResponse.SC_GATEWAY_TIMEOUT, "");
+            res.sendError(HttpServletResponse.SC_GATEWAY_TIMEOUT);
         } catch (FileNotFoundException e){
             String uri;
             if(containerExists){
@@ -177,15 +179,15 @@ public class StreamUploaderProxy extends HttpServlet {
             res.sendError(HttpServletResponse.SC_NOT_FOUND, "Please check that "+uri+" exists.");
         }
         catch (RuntimeException e){
-            res.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR,"");
+            res.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
             log(e.getMessage());
         } catch (IOException e) {
             if (null != targetConnection) {
                 int responseStatus = ((HttpURLConnection)targetConnection).getResponseCode();
                 log("Received unexpected response status "+responseStatus+" from POST "+targetUrl.toString());
-                res.sendError(HttpServletResponse.SC_BAD_GATEWAY, "");
+                res.sendError(HttpServletResponse.SC_BAD_GATEWAY);
             } else {
-                res.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "");
+                res.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
                 e.printStackTrace();
             }
         }
