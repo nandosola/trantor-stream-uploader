@@ -17,10 +17,27 @@
 package cc.abstra.trantor.wcamp;
 
 
+import java.util.ArrayList;
+import java.util.List;
+
 public class CustomHttpHeaders {
 
     private CustomHttpHeaders() {}
 
-    public static final String X_TRANTOR_FILE_ID = "X-Trantor-File-Id";
+    /** Set by the API client */
+    public static final String X_TRANTOR_CLIENT_ID = "X-Trantor-Client-Id";
+    public static final String X_TRANTOR_CLIENT_ASSIGNED_FILE_ID = "X-Trantor-Client-Assigned-File-Id";
 
+    /** Set by FileServer */
+    public static final String X_TRANTOR_UPLOADED_FILES_INFO = "X-Trantor-Uploaded-Files-Info";
+    //example: X-Trantor-Uploaded-Files-Info: deadbeef/Brian's Life; coffeebabe/img_009; ...
+
+    public static final List<String> doNotCopyLc;
+    static {
+        doNotCopyLc = new ArrayList<String>() {{
+            add(X_TRANTOR_CLIENT_ID.toLowerCase());
+            add(X_TRANTOR_CLIENT_ASSIGNED_FILE_ID.toLowerCase());
+            add(X_TRANTOR_UPLOADED_FILES_INFO.toLowerCase());
+        }};
+    }
 }

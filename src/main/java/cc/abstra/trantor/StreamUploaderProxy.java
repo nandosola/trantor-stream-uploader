@@ -26,10 +26,7 @@ import javax.servlet.ServletException;
 import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
+import java.io.*;
 import java.net.*;
 import java.util.Enumeration;
 import java.util.List;
@@ -66,23 +63,37 @@ public class StreamUploaderProxy extends HttpServlet {
         }
     }
 
+    public void log(String msg){
+        if(containerExists) {  // use container's logging facility
+            super.log(msg);
+        } else {
+            System.out.println(msg);
+        }
+    }
+    
+
     @Override
     public void doPost(HttpServletRequest req, HttpServletResponse res) throws IOException {
 
         WcampClient tempDoc = null;
 
-        if(containerExists) {  // use container's logging facility
-          log("POST " + req.getRequestURI() + " --> " + targetUrl.toString());
-        } else {  // testing environment
-            if(null == targetUrl)
-                this.targetUrl = new URL(testUrl);
+        if (!containerExists && null == targetUrl){ // testing environment
+            this.targetUrl = new URL(testUrl);
         }
+        log("POST " + req.getRequestURI() + " --> " + targetUrl.toString());
 
-        if(null != req.getHeader(CustomHttpHeaders.X_TRANTOR_FILE_ID)){
-            this.trantorFileId = req.getHeader(CustomHttpHeaders.X_TRANTOR_FILE_ID);
-            this.uploadComesFromAPI = true;
-            WcampClient.TempDoc.verify(trantorFileId);
-            // else: 403 -- TempDocumentNotFound
+        if(null != req.getHeader(CustomHttpHeaders.X_TRANTOR_CLIENT_ASSIGNED_FILE_ID)){
+            String clientId = req.getHeader(CustomHttpHeaders.X_TRANTOR_CLIENT_ID);
+            if (null != clientId){
+                log("Received POST request from API. Client id: "+ clientId);
+                this.trantorFileId = req.getHeader(CustomHttpHeaders.X_TRANTOR_CLIENT_ASSIGNED_FILE_ID);
+                this.uploadComesFromAPI = true;
+                // do as asyncTask? WcampTempDoc.verify(trantorFileId);
+            } else {
+                // exception: (HttpServletResponse.SC_PRECONDITION_FAILED);
+            }
+        } else {
+            log("Received POST request from WCAMP");
         }
 
         URLConnection targetConnection = null;
@@ -126,25 +137,32 @@ public class StreamUploaderProxy extends HttpServlet {
             }
 
         } catch (ConnectException e) {
+            log("Received unexpected response from "+targetUrl.toString()+": "+e.getCause());
             res.sendError(HttpServletResponse.SC_BAD_GATEWAY);
         } catch (SocketTimeoutException e) {
             res.sendError(HttpServletResponse.SC_GATEWAY_TIMEOUT);
+        } catch (FileNotFoundException e){
+            String uri;
+            if(containerExists){
+                uri = targetUrl.toString();
+            } else {
+                uri = testUrl;
+            }
+            res.sendError(HttpServletResponse.SC_NOT_FOUND, "Please check that "+uri+" exists.");
         } catch (WcampConnectionException e){
             res.sendError(e.errorCode);
         } catch (WcampRestRequestIOException e){
             res.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
-        }
-        catch (IOException e) {
-            int responseStatus = 0;
+            e.printStackTrace();
+        } catch (IOException e) {
             if (null != targetConnection) {
-                responseStatus = ((HttpURLConnection)targetConnection).getResponseCode();
-            }
-            if (HttpServletResponse.SC_INTERNAL_SERVER_ERROR == responseStatus){
+                int responseStatus = ((HttpURLConnection)targetConnection).getResponseCode();
+                log("Received unexpected response status "+responseStatus+" from POST "+targetUrl.toString());
                 res.sendError(HttpServletResponse.SC_BAD_GATEWAY);
             } else {
-                throw e;
+                res.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+                e.printStackTrace();
             }
-
         }
         // note: the uncaught exceptions will be shown as "500"
 
