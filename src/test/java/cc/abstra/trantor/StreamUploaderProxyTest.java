@@ -190,13 +190,13 @@ public class StreamUploaderProxyTest {
     @Test
     @Ignore("TODO")
     public void testDoSuccessfulPostFromAPI() throws Exception {
-        //test WcampClient
+        //test WcampRestResource
     }
 
     @Test
     @Ignore("TODO")
     public void testDoPostFromAPIWithErrors() throws Exception {
-        //test WcampClient
+        //test WcampRestResource
     }
 
 }

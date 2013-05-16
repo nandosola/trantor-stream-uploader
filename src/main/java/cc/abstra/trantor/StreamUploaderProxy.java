@@ -17,7 +17,7 @@
 package cc.abstra.trantor;
 
 import cc.abstra.trantor.wcamp.CustomHttpHeaders;
-import cc.abstra.trantor.wcamp.WcampClient;
+import cc.abstra.trantor.wcamp.WcampRestResource;
 import cc.abstra.trantor.wcamp.exceptions.WcampConnectionException;
 import cc.abstra.trantor.wcamp.exceptions.WcampRestRequestIOException;
 
@@ -75,7 +75,7 @@ public class StreamUploaderProxy extends HttpServlet {
     @Override
     public void doPost(HttpServletRequest req, HttpServletResponse res) throws IOException {
 
-        WcampClient tempDoc = null;
+        WcampRestResource tempDoc = null;
 
         if (!containerExists && null == targetUrl){ // testing environment
             this.targetUrl = new URL(testUrl);
@@ -131,10 +131,10 @@ public class StreamUploaderProxy extends HttpServlet {
                 res.getOutputStream().write(outBytes);
             }
 
-            if(uploadComesFromAPI){
-                WcampClient.TempDoc.archive(trantorFileId);
+            /*if(uploadComesFromAPI){
+                WcampTempDoc.archive(trantorFileId);
                 // 410 -- Gone  tmpcollection expired
-            }
+            }*/
 
         } catch (ConnectException e) {
             log("Received unexpected response from "+targetUrl.toString()+": "+e.getCause());
