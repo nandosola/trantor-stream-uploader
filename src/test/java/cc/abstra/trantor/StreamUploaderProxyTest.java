@@ -17,6 +17,7 @@ package cc.abstra.trantor;
 
 import cc.abstra.trantor.wcamp.CustomHttpHeaders;
 import cc.abstra.trantor.wcamp.WcampPendingDoc;
+import org.junit.After;
 import org.junit.Before;
 import org.junit.Ignore;
 import org.junit.Test;
@@ -109,6 +110,11 @@ public class StreamUploaderProxyTest {
         responseOutputStream = mock(ServletOutputStream.class);
 
         mockStatic(WcampPendingDoc.class);
+    }
+
+    @After
+    public void tearDown() throws Exception {
+        uploadProxy.destroy();
     }
 
     @Test

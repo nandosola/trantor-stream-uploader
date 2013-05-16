@@ -66,6 +66,12 @@ public class StreamUploaderProxy extends HttpServlet {
         }
     }
 
+    @Override
+    public void destroy(){
+        executor.shutdownNow();
+    }
+
+    @Override
     public void log(String msg){
         if(containerExists) {  // use container's logging facility
             super.log(msg);
