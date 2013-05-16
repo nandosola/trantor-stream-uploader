@@ -16,8 +16,10 @@
 
 package cc.abstra.trantor;
 
+import cc.abstra.trantor.asynctasks.AddToPendingDocs;
 import cc.abstra.trantor.wcamp.CustomHttpHeaders;
 
+import javax.servlet.AsyncContext;
 import javax.servlet.ServletConfig;
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServlet;
@@ -28,11 +30,17 @@ import java.net.*;
 import java.util.Enumeration;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ScheduledThreadPoolExecutor;
 
 public class StreamUploaderProxy extends HttpServlet {
 
+    static final int ASYNC_EXECUTOR_THREAD_POOL_SIZE = 10;
     static final int DEFAULT_CHUNK_SIZE = 1024;
     static final int FIVE_MIN = 300000;  //msec
+
+    private static ScheduledThreadPoolExecutor executor =
+            new ScheduledThreadPoolExecutor(ASYNC_EXECUTOR_THREAD_POOL_SIZE);
+
     private URL targetUrl = null;
     private String testUrl;  //injected from Mockito test.
                              // note: Servlets may not have parametrized constructors
@@ -124,6 +132,15 @@ public class StreamUploaderProxy extends HttpServlet {
             try (InputStream targetResponseIS = targetConnection.getInputStream()) {
                 byte[] outBytes = extractByteArray(targetResponseIS);  // note: byte[] holds max 2 GB (Java default)
                 copyResponseHeaders(targetConnection, res, outBytes.length);
+                if(uploadComesFromAPI){
+                    //not ready yet
+                } else {
+                    String clientCookie = req.getHeader(HttpHeaders.COOKIE);
+                    String trantorUploadedFilesInfo = targetConnection.
+                            getHeaderField(CustomHttpHeaders.X_TRANTOR_UPLOADED_FILES_INFO);
+                    AsyncContext ac = req.startAsync();
+                    executor.execute(new AddToPendingDocs(ac, clientCookie, trantorUploadedFilesInfo));
+                }
                 res.getOutputStream().write(outBytes);
             }
 

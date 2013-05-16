@@ -15,6 +15,8 @@
  */
 package cc.abstra.trantor;
 
+import cc.abstra.trantor.wcamp.CustomHttpHeaders;
+import cc.abstra.trantor.wcamp.WcampPendingDoc;
 import org.junit.Before;
 import org.junit.Ignore;
 import org.junit.Test;
@@ -45,7 +47,7 @@ import static org.powermock.api.mockito.PowerMockito.mock;
 import static org.powermock.api.mockito.PowerMockito.*;
 
 @RunWith(PowerMockRunner.class)
-@PrepareForTest({URL.class, StreamUploaderProxy.class})
+@PrepareForTest({URL.class, StreamUploaderProxy.class, WcampPendingDoc.class})
 // Adding the class under test to the @PrepareForTest ensures that the StreamUploaderProxy class
 // is loaded with the modified URL.class loaded provided by PowerMockito.
 public class StreamUploaderProxyTest {
@@ -83,7 +85,7 @@ public class StreamUploaderProxyTest {
         requestHeaders.put(HttpHeaders.ACCEPT_ENCODING, "Accept-Encoding:gzip, deflate");
         requestHeaders.put(HttpHeaders.ACCEPT, "application/json, text/javascript, */*; q=0.01");
         requestHeaders.put(HttpHeaders.COOKIE,
-                "rack.session=102d0b1b6cc1adca0921ac65d49ff1b4cfd1b16d87905b4 54db9ed710919baa0");
+                "rack.session=102d0b1b6cc1adca0921ac65d49ff1b4cfd1b16d87905b454db9ed710919baa0");
 
         clientRequestStr = "Dummy client request body";
 
@@ -106,6 +108,7 @@ public class StreamUploaderProxyTest {
         clientRequestInputStream = new MockServletInputStream(clientRequestStr);
         responseOutputStream = mock(ServletOutputStream.class);
 
+        mockStatic(WcampPendingDoc.class);
     }
 
     @Test
@@ -133,6 +136,9 @@ public class StreamUploaderProxyTest {
         when(urlConnection.getInputStream()).thenReturn(new ByteArrayInputStream(remoteResponseStr.getBytes("UTF-8")));
         when(urlConnection.getHeaderField(0)).thenReturn("HTTP/1.1 201 Created");
         when(urlConnection.getHeaderFields()).thenReturn(remoteResponseHeaders);
+        when(request.getHeader(HttpHeaders.COOKIE)).thenReturn(requestHeaders.get(HttpHeaders.COOKIE));
+        when(urlConnection.getHeaderField(CustomHttpHeaders.X_TRANTOR_UPLOADED_FILES_INFO)).thenReturn(
+                "c0ffeeb4b3/example 1 title; f00b4rb4z/title_example_2");
         when(response.getOutputStream()).thenReturn(responseOutputStream);
 
         uploadProxy.doPost(request, response);
@@ -174,6 +180,8 @@ public class StreamUploaderProxyTest {
         // verify res.getOutputStream().write() <-- targetResponseIS (body & headers)
         verify(urlConnection).getInputStream();
         verify(response).getOutputStream();
+        PowerMockito.verifyStatic();
+        WcampPendingDoc.add(anyString(), eq(requestHeaders.get(HttpHeaders.COOKIE)));
         verify(responseOutputStream).write(aryEq(remoteResponseStr.getBytes()));
     }
 
