@@ -24,7 +24,7 @@ Please be aware, that there is Trantor-specific code living under `cc.abstra.tra
 * Document metadata archiving after a successful POST from the API
 * Forwarding the request's OAuth 2.0 credentials to the OmniAuth middleware living in the front-end and processing authorization responses.
 
-Delete it from your copy if you want
+Delete this package and the references to its classes from your clone.
 
 ### Configure it
 Its configuration is done via `src/main/webapp/web.xml` is simple:
