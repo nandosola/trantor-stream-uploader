@@ -1,8 +1,6 @@
 package cc.abstra.trantor.wcamp;
 
 
-import cc.abstra.trantor.wcamp.exceptions.WcampConnectionException;
-
 import java.io.IOException;
 
 public interface WorklistResource {
@@ -12,6 +10,6 @@ public interface WorklistResource {
     public static final java.lang.String REMOVE_CMD = "/remove/";
     public static final String NEEDED_PERM ="upload_doc";
 
-    public void add(String docIds) throws WcampConnectionException, WcampConnectionException, IOException;
+    public void add(String docIds) throws IOException;
     public void remove(String docId);
 }

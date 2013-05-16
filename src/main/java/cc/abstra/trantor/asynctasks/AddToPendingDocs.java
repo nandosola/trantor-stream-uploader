@@ -1,7 +1,6 @@
 package cc.abstra.trantor.asynctasks;
 
 import cc.abstra.trantor.wcamp.WcampPendingDoc;
-import cc.abstra.trantor.wcamp.exceptions.WcampConnectionException;
 
 import javax.servlet.AsyncContext;
 import java.io.IOException;

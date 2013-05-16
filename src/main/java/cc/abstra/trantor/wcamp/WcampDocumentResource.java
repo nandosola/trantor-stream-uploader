@@ -46,18 +46,16 @@ public abstract class WcampDocumentResource implements AuthorizedResource {
     }
 
     @Override
-    public void authorize() throws WcampConnectionException, IOException {
+    public void authorize() throws IOException {
         restRequest(WCAMP_URI + PERMISSION + neededPerm, HttpMethods.GET);
     }
 
-    protected void restRequest(String url, String method)
-            throws WcampConnectionException, IOException {
-
+    protected void restRequest(String url, String method) throws IOException {
         restRequest(url, method, authHeader);  //Sending "Cookie" or "Authorization" header by default
     }
 
-    protected void restRequest(String url, String method, Map<String, String> headers) throws
-            WcampConnectionException, IOException {  //custom headers
+    /** Custom headers */
+    protected void restRequest(String url, String method, Map<String, String> headers) throws IOException {
 
         HttpURLConnection connection = null;
         try {

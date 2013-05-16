@@ -2,8 +2,6 @@ package cc.abstra.trantor.wcamp;
 
 import cc.abstra.trantor.HttpHeaders;
 import cc.abstra.trantor.HttpMethods;
-import cc.abstra.trantor.wcamp.exceptions.WcampConnectionException;
-import cc.abstra.trantor.wcamp.exceptions.WcampNotAuthorizedException;
 
 import java.io.IOException;
 
@@ -20,13 +18,13 @@ public class WcampTempDoc extends WcampDocumentResource implements ArchiveResour
     }
 
     @Override
-    public void verify() throws WcampConnectionException, IOException {
+    public void verify() throws IOException {
         restRequest(WCAMP_URI + PATH + tempDocId, HttpMethods.HEAD);
     }
 
     @Override
-    public void archive() throws WcampConnectionException, IOException {
+    public void archive() throws IOException {
         restRequest(WCAMP_URI + PATH + tempDocId + ARCHIVE_CMD, HttpMethods.PUT);
-        // 410 -- Gone  tmpcollection expired
+        // 410 -- Gone  tmpcollection expired ???
     }
 }

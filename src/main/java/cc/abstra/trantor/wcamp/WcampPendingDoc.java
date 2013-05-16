@@ -2,7 +2,6 @@ package cc.abstra.trantor.wcamp;
 
 import cc.abstra.trantor.HttpHeaders;
 import cc.abstra.trantor.HttpMethods;
-import cc.abstra.trantor.wcamp.exceptions.WcampConnectionException;
 
 import java.io.IOException;
 import java.util.HashMap;
@@ -15,8 +14,7 @@ public class WcampPendingDoc extends WcampDocumentResource implements WorklistRe
     }
 
     @Override
-    public void add(String uploadedDocsInfo)
-            throws WcampConnectionException, IOException {
+    public void add(String uploadedDocsInfo) throws IOException {
 
         Map<String, String> customHeaders = new HashMap<>();
         customHeaders.put(CustomHttpHeaders.X_TRANTOR_UPLOADED_FILES_INFO, uploadedDocsInfo);
