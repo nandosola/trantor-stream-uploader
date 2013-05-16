@@ -17,9 +17,6 @@
 package cc.abstra.trantor;
 
 import cc.abstra.trantor.wcamp.CustomHttpHeaders;
-import cc.abstra.trantor.wcamp.WcampRestResource;
-import cc.abstra.trantor.wcamp.exceptions.WcampConnectionException;
-import cc.abstra.trantor.wcamp.exceptions.WcampRestRequestIOException;
 
 import javax.servlet.ServletConfig;
 import javax.servlet.ServletException;
@@ -148,11 +145,6 @@ public class StreamUploaderProxy extends HttpServlet {
                 uri = testUrl;
             }
             res.sendError(HttpServletResponse.SC_NOT_FOUND, "Please check that "+uri+" exists.");
-        } catch (WcampConnectionException e){
-            res.sendError(e.errorCode);
-        } catch (WcampRestRequestIOException e){
-            res.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
-            e.printStackTrace();
         } catch (IOException e) {
             if (null != targetConnection) {
                 int responseStatus = ((HttpURLConnection)targetConnection).getResponseCode();
