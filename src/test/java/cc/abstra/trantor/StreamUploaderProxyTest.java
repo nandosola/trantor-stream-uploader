@@ -48,7 +48,7 @@ import static org.powermock.api.mockito.PowerMockito.mock;
 import static org.powermock.api.mockito.PowerMockito.*;
 
 @RunWith(PowerMockRunner.class)
-@PrepareForTest({URL.class, StreamUploaderProxy.class, WcampPendingDoc.class})
+@PrepareForTest({URL.class, StreamUploaderProxy.class})
 // Adding the class under test to the @PrepareForTest ensures that the StreamUploaderProxy class
 // is loaded with the modified URL.class loaded provided by PowerMockito.
 public class StreamUploaderProxyTest {
@@ -66,6 +66,7 @@ public class StreamUploaderProxyTest {
     private OutputStream targetReqOutputStream;
     private MockServletInputStream clientRequestInputStream;
     private ServletOutputStream responseOutputStream;
+    private WcampPendingDoc pendingDoc;
 
     @InjectMocks private StreamUploaderProxy uploadProxy = new StreamUploaderProxy();
 
@@ -109,8 +110,19 @@ public class StreamUploaderProxyTest {
         clientRequestInputStream = new MockServletInputStream(clientRequestStr);
         responseOutputStream = mock(ServletOutputStream.class);
 
-        mockStatic(WcampPendingDoc.class);
+        pendingDoc = mock(WcampPendingDoc.class);
     }
+
+    /* Mock a static method (for future reference):
+      @PrepareForTest({..., ClassWith.class, ...})
+      mockStatic(Static.class);
+      ...
+      PowerMockito.verifyStatic(); // no need to mock/verify the executor service
+      ClassWith.static_method(... matchers ...);
+     */
+
+    // WARNING: PowerMock does not support Java 7exception multicatching
+    // https://code.google.com/p/powermock/issues/detail?id=427
 
     @After
     public void tearDown() throws Exception {
@@ -118,9 +130,12 @@ public class StreamUploaderProxyTest {
     }
 
     @Test
-    public void testDoSuccessfulPostWithKnownContentLength() throws Exception {
+    public void testDoSuccessfulPostWithKnownContentLengthViaWebClient() throws Exception {
 
         whenNew(URL.class).withArguments(testUrl).thenReturn(targetUrl);
+        whenNew(WcampPendingDoc.class).withArguments(anyString()).thenReturn(pendingDoc);
+
+        when(request.getHeader(eq(HttpHeaders.COOKIE))).thenReturn(requestHeaders.get(HttpHeaders.COOKIE));
         when(targetUrl.openConnection()).thenReturn(urlConnection);
 
         // Ignores CustomHttpHeaders.CONTENT_LENGTH, using request.geyInputStream() byte[] length
@@ -150,11 +165,13 @@ public class StreamUploaderProxyTest {
         uploadProxy.doPost(request, response);
 
         verifyNew(URL.class).withArguments(testUrl);  // injected dependency
+        verifyNew(WcampPendingDoc.class).withArguments(requestHeaders.get(HttpHeaders.COOKIE));
 
         // This won't work:
         // See: https://code.google.com/p/powermock/issues/detail?id=297
         //verify(targetUrl).openConnection();
         verify(urlConnection).setDoOutput(true);  //  POST request
+        verify(pendingDoc, times(2)).getAuthToken();
         verify(urlConnection).setReadTimeout(anyInt());  // just in case someone deletes it ;-)
 
         // verify proxyed request headers
@@ -186,8 +203,8 @@ public class StreamUploaderProxyTest {
         // verify res.getOutputStream().write() <-- targetResponseIS (body & headers)
         verify(urlConnection).getInputStream();
         verify(response).getOutputStream();
-        PowerMockito.verifyStatic();
-        WcampPendingDoc.add(anyString(), eq(requestHeaders.get(HttpHeaders.COOKIE)));
+        verify(pendingDoc).add(eq("c0ffeeb4b3/example 1 title; f00b4rb4z/title_example_2"));
+
         verify(responseOutputStream).write(aryEq(remoteResponseStr.getBytes()));
     }
 
@@ -204,13 +221,13 @@ public class StreamUploaderProxyTest {
     @Test
     @Ignore("TODO")
     public void testDoSuccessfulPostFromAPI() throws Exception {
-        //test WcampRestResource
+        //test WcampDocumentResource
     }
 
     @Test
     @Ignore("TODO")
     public void testDoPostFromAPIWithErrors() throws Exception {
-        //test WcampRestResource
+        //test WcampDocumentResource
     }
 
 }

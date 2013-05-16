@@ -17,7 +17,9 @@
 package cc.abstra.trantor.wcamp.exceptions;
 
 
-public class WcampConnectionException extends RuntimeException {
+import java.net.ConnectException;
+
+public class WcampConnectionException extends ConnectException {
     public int errorCode;
 
     public WcampConnectionException(String message, int errorCode) {

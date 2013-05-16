@@ -1,26 +1,25 @@
 package cc.abstra.trantor.asynctasks;
 
 import cc.abstra.trantor.wcamp.WcampTempDoc;
-import cc.abstra.trantor.wcamp.exceptions.WcampConnectionException;
-import cc.abstra.trantor.wcamp.exceptions.WcampRestRequestIOException;
 
 import javax.servlet.AsyncContext;
+import java.io.IOException;
 
 public class ArchiveTempDoc implements Runnable {
 
     private AsyncContext ac;
-    private final String fileId;
+    private final WcampTempDoc tempDocument;
 
-    public ArchiveTempDoc(AsyncContext ac, String fileId) {
+    public ArchiveTempDoc(AsyncContext ac, WcampTempDoc tempDocument) {
         this.ac = ac;
-        this.fileId = fileId;
+        this.tempDocument = tempDocument;
     }
 
     @Override
     public void run() {
         try {
-            WcampTempDoc.archive(fileId);
-        } catch (WcampRestRequestIOException |WcampConnectionException e) {
+            tempDocument.archive();
+        } catch (IOException e) {
             e.printStackTrace();
         } finally {
             ac.complete();

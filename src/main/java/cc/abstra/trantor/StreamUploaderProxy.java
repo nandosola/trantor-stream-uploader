@@ -17,7 +17,13 @@
 package cc.abstra.trantor;
 
 import cc.abstra.trantor.asynctasks.AddToPendingDocs;
+import cc.abstra.trantor.asynctasks.ArchiveTempDoc;
 import cc.abstra.trantor.wcamp.CustomHttpHeaders;
+import cc.abstra.trantor.wcamp.WcampDocumentResource;
+import cc.abstra.trantor.wcamp.WcampPendingDoc;
+import cc.abstra.trantor.wcamp.WcampTempDoc;
+import cc.abstra.trantor.wcamp.exceptions.WcampConnectionException;
+import cc.abstra.trantor.wcamp.exceptions.WcampNotAuthorizedException;
 
 import javax.servlet.AsyncContext;
 import javax.servlet.ServletConfig;
@@ -79,13 +85,11 @@ public class StreamUploaderProxy extends HttpServlet {
             System.out.println(msg);
         }
     }
-    
 
     @Override
     public void doPost(HttpServletRequest req, HttpServletResponse res) throws IOException {
 
-        String trantorFileId = null;
-        boolean uploadComesFromAPI = false;
+        WcampDocumentResource wcampDocument = null;
 
         if (!containerExists && null == targetUrl){ // testing environment
             this.targetUrl = new URL(testUrl);
@@ -94,20 +98,27 @@ public class StreamUploaderProxy extends HttpServlet {
 
         if(null != req.getHeader(CustomHttpHeaders.X_TRANTOR_CLIENT_ASSIGNED_FILE_ID)){
             String clientId = req.getHeader(CustomHttpHeaders.X_TRANTOR_CLIENT_ID);
+            String trantorFileId = req.getHeader(CustomHttpHeaders.X_TRANTOR_CLIENT_ASSIGNED_FILE_ID);
             if (null != clientId){
-                log("Received POST request from API. Client id: "+ clientId);
-                trantorFileId = req.getHeader(CustomHttpHeaders.X_TRANTOR_CLIENT_ASSIGNED_FILE_ID);
-                uploadComesFromAPI = true;
-                // do as asyncTask? WcampTempDoc.verify(trantorFileId);
+                wcampDocument = new WcampTempDoc(req.getHeader(HttpHeaders.AUTHORIZATION), clientId, trantorFileId);
+                log("Received POST request from API. Client id: "+ clientId+"\nAuthorization: "+
+                        wcampDocument.getAuthToken());
             } else {
-                // exception: (HttpServletResponse.SC_PRECONDITION_FAILED);
+                // throw exception: (HttpServletResponse.SC_PRECONDITION_FAILED);
             }
         } else {
-            log("Received POST request from WCAMP");
+            wcampDocument = new WcampPendingDoc(req.getHeader(HttpHeaders.COOKIE));
+            log("Received POST request from WCAMP" + "\nCookie: " + wcampDocument.getAuthToken());
         }
 
         URLConnection targetConnection = null;
         try {
+
+            if (wcampDocument != null) {
+                wcampDocument.authorize();
+                log("Authorized "+wcampDocument.getNeededPerm()+" for session "+wcampDocument.getAuthToken());
+            }
+
             targetConnection = targetUrl.openConnection();
             copyRequestHeaders(req, targetConnection);
             //  Note: These headers below would've been sent by default:
@@ -135,31 +146,27 @@ public class StreamUploaderProxy extends HttpServlet {
                     targetRequestOS.flush();
                 }
             }
+
             try (InputStream targetResponseIS = targetConnection.getInputStream()) {
                 byte[] outBytes = extractByteArray(targetResponseIS);  // note: byte[] holds max 2 GB (Java default)
                 copyResponseHeaders(targetConnection, res, outBytes.length);
-                if(uploadComesFromAPI){
-                    //not ready yet
+                AsyncContext ac = req.startAsync();
+                if(wcampDocument instanceof WcampTempDoc){
+                    executor.execute(new ArchiveTempDoc(ac, (WcampTempDoc)wcampDocument));
                 } else {
-                    String clientCookie = req.getHeader(HttpHeaders.COOKIE);
                     String trantorUploadedFilesInfo = targetConnection.
                             getHeaderField(CustomHttpHeaders.X_TRANTOR_UPLOADED_FILES_INFO);
-                    AsyncContext ac = req.startAsync();
-                    executor.execute(new AddToPendingDocs(ac, clientCookie, trantorUploadedFilesInfo));
+                    executor.execute(new AddToPendingDocs(ac, (WcampPendingDoc)wcampDocument, trantorUploadedFilesInfo));
                 }
                 res.getOutputStream().write(outBytes);
             }
-
-            /*if(uploadComesFromAPI){
-                WcampTempDoc.archive(trantorFileId);
-                // 410 -- Gone  tmpcollection expired
-            }*/
-
+        }catch (WcampNotAuthorizedException e){
+                res.sendError(HttpServletResponse.SC_UNAUTHORIZED, "");
         } catch (ConnectException e) {
             log("Received unexpected response from "+targetUrl.toString()+": "+e.getCause());
-            res.sendError(HttpServletResponse.SC_BAD_GATEWAY);
+            res.sendError(HttpServletResponse.SC_BAD_GATEWAY, "");
         } catch (SocketTimeoutException e) {
-            res.sendError(HttpServletResponse.SC_GATEWAY_TIMEOUT);
+            res.sendError(HttpServletResponse.SC_GATEWAY_TIMEOUT, "");
         } catch (FileNotFoundException e){
             String uri;
             if(containerExists){
@@ -168,24 +175,20 @@ public class StreamUploaderProxy extends HttpServlet {
                 uri = testUrl;
             }
             res.sendError(HttpServletResponse.SC_NOT_FOUND, "Please check that "+uri+" exists.");
+        }
+        catch (RuntimeException e){
+            res.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR,"");
+            log(e.getMessage());
         } catch (IOException e) {
             if (null != targetConnection) {
                 int responseStatus = ((HttpURLConnection)targetConnection).getResponseCode();
                 log("Received unexpected response status "+responseStatus+" from POST "+targetUrl.toString());
-                res.sendError(HttpServletResponse.SC_BAD_GATEWAY);
+                res.sendError(HttpServletResponse.SC_BAD_GATEWAY, "");
             } else {
-                res.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+                res.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "");
                 e.printStackTrace();
             }
         }
-        // note: the uncaught exceptions will be shown as "500"
-
-        // Trantor-specific behavior:
-        // TODO: check permissions remotely w/ headers Cookie or Authorization:
-        //   GET /permissions/upload_doc
-        //   GET /permissions/update_doc
-        //   statuses: 200, 403
-
     }
 
     private static void setStreamingMode(int contentLength, URLConnection conn) {

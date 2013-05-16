@@ -28,21 +28,36 @@ import java.util.Iterator;
 import java.util.Map;
 
 /** This class interacts with Trantor's metadata front-end API, internally known as WCAMP */
-public abstract class WcampRestResource {
+public abstract class WcampDocumentResource implements AuthorizedResource {
 
     protected static final String WCAMP_URI = "http://localhost:8080";
     private static final int TEN_SEC = 10000;  //msec
     private static final String CHARSET = "UTF-8";
 
-    protected static void restRequest(java.lang.String url, java.lang.String method)
-            throws WcampConnectionException, WcampRestRequestIOException {
+    protected Map<String, String> authHeader = new HashMap<>();
+    protected String authToken;
+    protected String neededPerm;
 
-        Map<String, String> headers = new HashMap<String, String>();
-        restRequest(url, method, headers);
+
+    protected WcampDocumentResource(String headerName, String token, String neededPerm) {
+        this.authToken = token;
+        this.neededPerm = neededPerm;
+        authHeader.put(headerName, authToken);
     }
 
-    protected static void restRequest(String url, String method, Map<String, String> headers)
-            throws WcampConnectionException, WcampRestRequestIOException {
+    @Override
+    public void authorize() throws WcampConnectionException, IOException {
+        restRequest(WCAMP_URI + PERMISSION + neededPerm, HttpMethods.GET);
+    }
+
+    protected void restRequest(String url, String method)
+            throws WcampConnectionException, IOException {
+
+        restRequest(url, method, authHeader);  //Sending "Cookie" or "Authorization" header by default
+    }
+
+    protected void restRequest(String url, String method, Map<String, String> headers) throws
+            WcampConnectionException, IOException {  //custom headers
 
         HttpURLConnection connection = null;
         try {
@@ -66,7 +81,7 @@ public abstract class WcampRestResource {
                     output.write(body.getBytes(CHARSET));
                 }
             }
-            // TODO: process response body
+            // TODO: process response body?
             //InputStream response = connection.getInputStream();
 
             int responseCode = connection.getResponseCode();
@@ -74,18 +89,29 @@ public abstract class WcampRestResource {
                 if (HttpServletResponse.SC_NOT_FOUND == responseCode) {
                     throw new DocumentNotFoundException();
                 } else {
-                    if (500 < responseCode) {
-                        throw new WcampClientErrorException(responseCode);
+                    if (HttpServletResponse.SC_UNAUTHORIZED == responseCode ||
+                            HttpServletResponse.SC_FORBIDDEN == responseCode) {
+                        throw new WcampNotAuthorizedException(authToken);
                     } else {
-                        throw new WcampServerErrorException(responseCode);
+                        if (500 < responseCode) {
+                            throw new WcampClientErrorException(responseCode);
+                        } else {
+                            throw new WcampServerErrorException(responseCode);
+                        }
                     }
                 }
             }
-        } catch (IOException e) {
-            throw new WcampRestRequestIOException(e);
         } finally {
             if (null != connection)
                 connection.disconnect();
         }
+    }
+
+    public String getAuthToken() {
+        return authToken;
+    }
+
+    public String getNeededPerm() {
+        return neededPerm;
     }
 }
