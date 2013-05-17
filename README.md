@@ -51,7 +51,6 @@ After the build process is complete, drop `target/stream-uploader.war` into `$JB
 
 ### TO-DO
 * More tests
-* Configure JSON error responses in JBoss using the appropriate `ErrorReportValve`
 
 
 ### License

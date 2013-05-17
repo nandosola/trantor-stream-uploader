@@ -32,12 +32,14 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.io.*;
 import java.net.*;
+import java.security.NoSuchAlgorithmException;
+import java.security.SecureRandom;
 import java.util.Enumeration;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 
-public class StreamUploaderProxy extends HttpServlet {
+public class StreamUploaderProxy extends HttpServlet implements JsonErrorResponses {
 
     static final int ASYNC_EXECUTOR_THREAD_POOL_SIZE = 10;
     static final int DEFAULT_CHUNK_SIZE = 1024;
@@ -100,14 +102,13 @@ public class StreamUploaderProxy extends HttpServlet {
             String trantorFileId = req.getHeader(CustomHttpHeaders.X_TRANTOR_CLIENT_ASSIGNED_FILE_ID);
             if (null != clientId){
                 wcampDocument = new WcampTempDoc(req.getHeader(HttpHeaders.AUTHORIZATION), clientId, trantorFileId);
-                log("Received POST request from API. Client id: "+ clientId+"\nAuthorization: "+
-                        wcampDocument.getAuthToken());
+                log("Received POST request from API. Client id: "+ clientId+" Authorization: "+ wcampDocument.getAuthToken());
             } else {
                 // throw exception: (HttpServletResponse.SC_PRECONDITION_FAILED);
             }
         } else {
             wcampDocument = new WcampPendingDoc(req.getHeader(HttpHeaders.COOKIE));
-            log("Received POST request from WCAMP" + "\nCookie: " + wcampDocument.getAuthToken());
+            log("Received POST request from WCAMP" + "Cookie: " + wcampDocument.getAuthToken());
         }
 
         URLConnection targetConnection = null;
@@ -163,12 +164,17 @@ public class StreamUploaderProxy extends HttpServlet {
                 res.getOutputStream().write(outBytes);
             }
         }catch (WcampNotAuthorizedException e){
-                res.sendError(HttpServletResponse.SC_UNAUTHORIZED);
+            String message = wcampDocument.getAuthToken()+" is not authorized to "+wcampDocument.getNeededPerm();
+            log(message);
+            writeErrorAsJson(res, HttpServletResponse.SC_UNAUTHORIZED, message);
         } catch (ConnectException e) {
-            log("Received unexpected response from "+targetUrl.toString()+": "+e.getCause());
-            res.sendError(HttpServletResponse.SC_BAD_GATEWAY);
+            String message = "Received unexpected response from "+targetUrl.toString()+": "+e.getCause();
+            log(message);
+            writeErrorAsJson(res, HttpServletResponse.SC_BAD_GATEWAY, message);
         } catch (SocketTimeoutException e) {
-            res.sendError(HttpServletResponse.SC_GATEWAY_TIMEOUT);
+            String message = "Timed out waiting for "+targetUrl.toString();
+            log(message);
+            writeErrorAsJson(res, HttpServletResponse.SC_GATEWAY_TIMEOUT, message);
         } catch (FileNotFoundException e){
             String uri;
             if(containerExists){
@@ -176,20 +182,30 @@ public class StreamUploaderProxy extends HttpServlet {
             } else {
                 uri = testUrl;
             }
-            res.sendError(HttpServletResponse.SC_NOT_FOUND, "Please check that "+uri+" exists.");
-        }
-        catch (RuntimeException e){
-            res.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
-            log(e.getMessage());
+            String message = "Please check that "+uri+" exists";
+            log(message);
+            writeErrorAsJson(res, HttpServletResponse.SC_NOT_FOUND, message);
         } catch (IOException e) {
             if (null != targetConnection) {
                 int responseStatus = ((HttpURLConnection)targetConnection).getResponseCode();
-                log("Received unexpected response status "+responseStatus+" from POST "+targetUrl.toString());
-                res.sendError(HttpServletResponse.SC_BAD_GATEWAY);
+                String nonce = getErrorNonce();
+                String message = "Please review the logs for code "+ nonce;
+                log("---- Begin ErrorMessage for error code "+nonce+"\nReceived unexpected response status "
+                        +responseStatus+" from POST "+targetUrl.toString());
+                writeErrorAsJson(res, HttpServletResponse.SC_BAD_GATEWAY, message);
             } else {
-                res.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+                String nonce = getErrorNonce();
+                String message = "Please review the logs for code "+ nonce;
+                writeErrorAsJson(res, HttpServletResponse.SC_INTERNAL_SERVER_ERROR, message);
+                log("---- Begin StackTrace for error code "+nonce);
                 e.printStackTrace();
             }
+        } catch (RuntimeException e){
+            String nonce = getErrorNonce();
+            String message = "Please review the logs for code "+ nonce;
+            writeErrorAsJson(res, HttpServletResponse.SC_INTERNAL_SERVER_ERROR, message);
+            log("---- Begin StackTrace for error code "+nonce);
+            e.printStackTrace();
         }
     }
 
@@ -265,5 +281,31 @@ public class StreamUploaderProxy extends HttpServlet {
         }
         baos.flush();
         return  baos.toByteArray();
+    }
+
+    @Override
+    public void writeErrorAsJson(HttpServletResponse response, int code, String msg) {
+        response.setStatus(code);
+        response.setContentType(CONTENT_TYPE);
+        response.setCharacterEncoding(UTF_8);
+        try {
+            response.getWriter().write("{\"msg\":\"" + msg + "\"}");
+        } catch (IOException e) {
+            log("Could not write response!!");
+            e.printStackTrace();
+        }
+    }
+
+    @Override
+    public String getErrorNonce() {
+        String errorNonce = null;
+        try {
+            SecureRandom sr = SecureRandom.getInstance(SHA1PRNG);
+            errorNonce = Integer.toString(sr.nextInt());
+        } catch (NoSuchAlgorithmException e) {
+            log("getErrorNonce: Algorithm "+SHA1PRNG+"is not valid!");
+            e.printStackTrace();
+        }
+        return errorNonce;
     }
 }
