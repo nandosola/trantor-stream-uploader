@@ -44,7 +44,7 @@ Its configuration is done via `src/main/webapp/web.xml` is simple:
 The resulting WAR will be deployed at the `/uploader` context. If you wish to change it, then edit `src/main/webapp/jboss-web.xml`.
 
 ### Build it
-This is a Maven 3 project. Mosey along: `mvn clean package`
+This is a Maven 3 project. Mosey along: `mvn clean package`. Please make sure (Open)JDK 1.7 is installed and used (ie. update-alternatives).
 
 ### Deploy it (JBoss 7 AS)
 After the build process is complete, drop `target/stream-uploader.war` into `$JBOSS_HOME/standalone/deployments` or execute
