@@ -47,7 +47,8 @@ The resulting WAR will be deployed at the `/uploader` context. If you wish to ch
 This is a Maven 3 project. Mosey along: `mvn clean package`
 
 ### Deploy it (JBoss 7 AS)
-After the build process is complete, drop `target/stream-uploader.war` into `$JBOSS_HOME/standalone/deployments`
+After the build process is complete, drop `target/stream-uploader.war` into `$JBOSS_HOME/standalone/deployments` or execute
+`mvn -Plocal-deploy clean package` or `mvn -Premote-deploy -DremoteIp=a.b.c.d clean package`. See `pom.xml` for more details.
 
 ### TO-DO
 * More tests

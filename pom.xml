@@ -11,8 +11,8 @@
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <powermock.version>1.5</powermock.version>
+        <jboss-as.version>7.4.Final</jboss-as.version>
     </properties>
-
 
     <dependencies>
         <dependency>
@@ -36,17 +36,127 @@
     </dependencies>
 
     <build>
+        <extensions>
+            <extension>
+                <groupId>org.apache.maven.wagon</groupId>
+                <artifactId>wagon-ssh</artifactId>
+                <version>2.2</version>
+            </extension>
+        </extensions>
         <finalName>${project.artifactId}</finalName>
         <plugins>
             <plugin>
                 <artifactId>maven-compiler-plugin</artifactId>
+                <version>3.0</version>
                 <configuration>
                     <source>1.7</source>
                     <target>1.7</target>
                 </configuration>
-                <version>3.0</version>
             </plugin>
         </plugins>
     </build>
-    
+
+    <profiles>
+        <profile>
+            <id>local-deploy</id>
+            <!-- WARNING: won't work with Oracle JDK 7 & OS X
+               See: http://youtrack.jetbrains.com/issue/IDEA-82687
+                    https://github.com/jbossas/jboss-as-maven-plugin/issues/21 -->
+                <build>
+                    <plugins>
+                        <plugin>
+                            <groupId>org.jboss.as.plugins</groupId>
+                            <artifactId>jboss-as-maven-plugin</artifactId>
+                            <version>${jboss-as.version}</version>
+                            <executions>
+                                <execution>
+                                    <id>upload-war-to-server</id>
+                                    <phase>package</phase>
+                                    <goals>
+                                        <goal>redeploy</goal>
+                                    </goals>
+                                </execution>
+                            </executions>
+                        </plugin>
+                    </plugins>
+                </build>
+        </profile>
+        <profile>
+            <id>remote-deploy</id>
+            <properties>
+                <app.war>${project.build.finalName}.war</app.war>
+                <local.keyfile>${user.home}/.ssh/id_rsa</local.keyfile>
+                <appsrv.user>torquebox</appsrv.user>
+                <app.home>/var/apps/trantor-stream-uploader</app.home>
+                <deploy.user>deployer</deploy.user>
+                <deploy.command>
+                    cd ${app.home};
+                    sudo -u ${appsrv.user} $JRUBY_HOME/bin/torquebox undeploy;
+                    sudo -u ${appsrv.user} $JRUBY_HOME/bin/torquebox deploy
+                </deploy.command>
+            </properties>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.codehaus.mojo</groupId>
+                        <artifactId>wagon-maven-plugin</artifactId>
+                        <version>1.0-beta-4</version>
+                        <!-- This plugins requires serverId to be set at ~/.m2/settings.xml:
+                               <server>
+                                 <id>trantor-development</id>
+                                 <username>deployer</username>
+                                 <privateKey>${user.home}/.ssh/id_rsa</privateKey>
+                               </server>
+
+                              Please copy ${user.home}/.ssh/id_rsa.pub to the remote host's ~/.ssh/known_hosts -->
+                        <configuration>
+                            <serverId>trantor-development</serverId>
+                            <fromFile>${project.build.directory}/${project.build.finalName}.war</fromFile>
+                            <url>scp://${remoteIp}${app.home}</url>
+                        </configuration>
+                        <executions>
+                            <execution>
+                                <id>upload-war-to-server</id>
+                                <phase>package</phase>
+                                <goals>
+                                    <goal>upload-single</goal>
+                                </goals>
+                            </execution>
+                        </executions>
+                    </plugin>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-antrun-plugin</artifactId>
+                        <version>1.7</version>
+                        <configuration>
+                            <target>
+                                <sshexec host="${remoteIp}" username="${deploy.user}"
+                                         keyfile="${local.keyfile}" command="${deploy.command}" />
+
+                                <taskdef name="sshexec"
+                                         classname="org.apache.tools.ant.taskdefs.optional.ssh.SSHExec" />
+                            </target>
+                        </configuration>
+                        <executions>
+                            <execution>
+                                <id>deploy-war</id>
+                                <phase>package</phase>
+                                <goals>
+                                    <goal>run</goal>
+                                </goals>
+                            </execution>
+                        </executions>
+                        <dependencies>
+                            <dependency>
+                                <groupId>org.apache.ant</groupId>
+                                <artifactId>ant-jsch</artifactId>
+                                <version>1.9.0</version>
+                            </dependency>
+                        </dependencies>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+    </profiles>
+
 </project>
