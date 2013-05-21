@@ -70,10 +70,17 @@
                             <version>${jboss-as.version}</version>
                             <executions>
                                 <execution>
-                                    <id>upload-war-to-server</id>
+                                    <id>undeploy-war</id>
                                     <phase>package</phase>
                                     <goals>
-                                        <goal>redeploy</goal>
+                                        <goal>undeploy</goal>
+                                    </goals>
+                                </execution>
+                                <execution>
+                                    <id>deploy-war</id>
+                                    <phase>package</phase>
+                                    <goals>
+                                        <goal>deploy</goal>
                                     </goals>
                                 </execution>
                             </executions>
