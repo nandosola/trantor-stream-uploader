@@ -130,7 +130,7 @@
                         <version>1.7</version>
                         <configuration>
                             <target>
-                                <sshexec host="${remoteIp}" username="${deploy.user}" trust="Yes"
+                                <sshexec host="${remoteIp}" username="${deploy.user}"
                                          keyfile="${local.keyfile}" command="${deploy.command}" />
 
                                 <taskdef name="sshexec"
