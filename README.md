@@ -1,15 +1,28 @@
 Stream Uploader Proxy Servlet
 -----------------------------
-Stream-uploading big files with Ruby Rack 1.x [is impossible](https://groups.google.com/forum/?fromgroups=#!topic/rack-devel/T5YE-aFzSIQ).
-The Problem is that [Rack would read the entire request body into memory](http://stackoverflow.com/questions/3027564), and there
-are no obvious ways to interact with raw requests and responses in this framework. AFAIK, to accomplish this task, people
-just use non-Rack stuff, such as [Goliath](https://github.com/postrank-labs/goliath), Node.js, JavaEE or even the venerable FastCGI.
-
-As a JRuby-friendly way, this project consists of simple Servlet, packaged in a WAR file ready to be deployed in
+This project consists of simple Servlet, packaged in a WAR file ready to be deployed in JBoss 7.x AS or
 [Torquebox](http://torquebox.org/documentation/). The stream is guaranteed to be 1KB wide, so its memory footprint is
 quite ridiculous. And it's fast. Moreover, no external Java libraries are used.
 
-### Motivation
+### The problem
+While all the cool kids in Ruby are busy streaming stuff
+[from the server](http://www.intridea.com/blog/2012/5/24/building-streaming-rest-apis-with-ruby), there are other equally
+cool kids who just want to stream stuff *to* the server. But, ¿is it possible to accomplish this task using *only* Ruby web frameworks?
+ And more importantly: if Rack is the de-facto engine for writing web frameworks in Ruby. ¿Is it enough?
+
+#### Bad news:
+Stream-uploading big files with Ruby Rack 1.x [is impossible](https://groups.google.com/forum/?fromgroups=#!topic/rack-devel/T5YE-aFzSIQ).
+The Problem is that [Rack would read the entire request body into memory](http://stackoverflow.com/questions/3027564), and there
+are no obvious ways to interact with raw requests and responses in this framework. AFAIK, to accomplish this task, people
+just use non-Rack stuff, such as Node.js, JavaEE or even the venerable FastCGI. And if you still don't believe me, just
+[read this](http://blog.plataformatec.com.br/2012/06/why-your-web-framework-should-not-adopt-rack-api/).
+
+Under Ruby, instead of monkey-patching Rack, many people use [Goliath](https://github.com/postrank-labs/goliath). Goliath handles streaming,
+[differently](https://github.com/postrank-labs/goliath/wiki/Streaming), even though it's Rack-based. But if you stick with Rack,
+perhaps you could use [jcommons-rack-upload](https://github.com/cowboyd/jcommons-rack-upload), which wraps `env['rack.input']` with
+a `java.io.ByteArrayInputStream`. But alas, AFAIK this later approach is just another monkey-patch.
+
+### Motivations
 In my case, the motivation came from Trantor, an internal doc archiving system we are developing. Trantor is distributed,
 so the web front-end and API (Sinatra/Rack app) lives in a different server than the file server back-end (another Sinatra/Rack app).
 The front-end app also hosts a `FileServiceProxy < Sinatra::Base` proxy for the GET, DELETE, OPTIONS and HEAD XMLHttpRequest:s
@@ -18,6 +31,13 @@ the limitations of Rack mentioned above, the POST requests (file creation) must 
 
 Last but not least, I wanted to learn how to use Mockito to test Servlets. I ended up using PowerMockito (PowerMock + Mockito)
 because Mockito by itself won't allow mocking final classes, such as Java's `URL`.
+
+#### Supported streaming modes
+The client can send files in three ways:
+
+* x-www-form-urlencoded (either one or multiple files)
+* Single-file binary streams with known or unknown content-length.
+
 
 ### Caveats
 Please be aware, that there is Trantor-specific code living under `cc.abstra.trantor.wcamp` that takes care of:
@@ -52,6 +72,7 @@ After the build process is complete, drop `target/stream-uploader.war` into `$JB
 
 ### TO-DO
 * More tests
+* Support [chunked file uploads](https://github.com/blueimp/jQuery-File-Upload/wiki/Chunked-file-uploads)
 
 
 ### License
