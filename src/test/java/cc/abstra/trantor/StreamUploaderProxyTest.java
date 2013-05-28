@@ -17,6 +17,7 @@ package cc.abstra.trantor;
 
 import cc.abstra.trantor.wcamp.CustomHttpHeaders;
 import cc.abstra.trantor.wcamp.WcampPendingDoc;
+import cc.abstra.trantor.wcamp.WcampTempDoc;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Ignore;
@@ -30,6 +31,7 @@ import org.powermock.api.mockito.PowerMockito;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
 
+import javax.servlet.AsyncContext;
 import javax.servlet.ServletOutputStream;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
@@ -67,6 +69,8 @@ public class StreamUploaderProxyTest {
     private MockServletInputStream clientRequestInputStream;
     private ServletOutputStream responseOutputStream;
     private WcampPendingDoc pendingDoc;
+    private WcampTempDoc tempDoc;
+    private AsyncContext asyncCtx;
 
     @InjectMocks private StreamUploaderProxy uploadProxy = new StreamUploaderProxy();
 
@@ -110,7 +114,9 @@ public class StreamUploaderProxyTest {
         clientRequestInputStream = new MockServletInputStream(clientRequestStr);
         responseOutputStream = mock(ServletOutputStream.class);
 
+        asyncCtx = mock(AsyncContext.class);
         pendingDoc = mock(WcampPendingDoc.class);
+        tempDoc = mock(WcampTempDoc.class);
     }
 
     /* Mock a static method (for future reference):
@@ -161,6 +167,8 @@ public class StreamUploaderProxyTest {
         when(urlConnection.getHeaderField(CustomHttpHeaders.X_TRANTOR_UPLOADED_FILES_INFO)).thenReturn(
                 "c0ffeeb4b3/example 1 title; f00b4rb4z/title_example_2");
         when(response.getOutputStream()).thenReturn(responseOutputStream);
+
+        when(request.startAsync()).thenReturn(asyncCtx);
 
         uploadProxy.doPost(request, response);
 

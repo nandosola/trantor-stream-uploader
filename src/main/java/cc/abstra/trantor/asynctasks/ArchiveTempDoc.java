@@ -9,16 +9,18 @@ public class ArchiveTempDoc implements Runnable {
 
     private AsyncContext ac;
     private final WcampTempDoc tempDocument;
+    private final String filesInfo;
 
-    public ArchiveTempDoc(AsyncContext ac, WcampTempDoc tempDocument) {
+    public ArchiveTempDoc(AsyncContext ac, WcampTempDoc tempDocument, String filesInfo) {
         this.ac = ac;
         this.tempDocument = tempDocument;
+        this.filesInfo = filesInfo;
     }
 
     @Override
     public void run() {
         try {
-            tempDocument.archive();
+            tempDocument.archive(filesInfo);
         } catch (IOException e) {
             e.printStackTrace();
         } finally {

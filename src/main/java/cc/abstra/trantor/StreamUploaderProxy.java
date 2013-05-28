@@ -18,15 +18,17 @@ package cc.abstra.trantor;
 
 import cc.abstra.trantor.asynctasks.AddToPendingDocs;
 import cc.abstra.trantor.asynctasks.ArchiveTempDoc;
+import cc.abstra.trantor.asynctasks.TrantorAsyncListener;
+import cc.abstra.trantor.exceptions.EvilHeaderException;
+import cc.abstra.trantor.wcamp.exceptions.MissingClientHeadersException;
 import cc.abstra.trantor.wcamp.CustomHttpHeaders;
 import cc.abstra.trantor.wcamp.WcampDocumentResource;
 import cc.abstra.trantor.wcamp.WcampPendingDoc;
 import cc.abstra.trantor.wcamp.WcampTempDoc;
+import cc.abstra.trantor.wcamp.exceptions.DocumentNotFoundException;
 import cc.abstra.trantor.wcamp.exceptions.WcampNotAuthorizedException;
 
-import javax.servlet.AsyncContext;
-import javax.servlet.ServletConfig;
-import javax.servlet.ServletException;
+import javax.servlet.*;
 import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
@@ -88,45 +90,43 @@ public class StreamUploaderProxy extends HttpServlet implements JsonErrorRespons
     }
 
     @Override
-    public void doPost(HttpServletRequest req, HttpServletResponse res) throws IOException {
+    public void doPost(HttpServletRequest req, HttpServletResponse res) {
 
         WcampDocumentResource wcampDocument = null;
 
         if (!containerExists && null == targetUrl){ // testing environment
-            this.targetUrl = new URL(testUrl);
+            try {
+                this.targetUrl = new URL(testUrl);
+            } catch (MalformedURLException e) {
+                log("Injected targetUrl from tests is malformed!");
+            }
         }
         log("POST " + req.getRequestURI() + " --> " + targetUrl.toString());
-
-        if(null != req.getHeader(CustomHttpHeaders.X_TRANTOR_CLIENT_ASSIGNED_FILE_ID)){
-            String clientId = req.getHeader(CustomHttpHeaders.X_TRANTOR_CLIENT_ID);
-            String trantorFileId = req.getHeader(CustomHttpHeaders.X_TRANTOR_CLIENT_ASSIGNED_FILE_ID);
-            if (null != clientId){
-                wcampDocument = new WcampTempDoc(req.getHeader(HttpHeaders.AUTHORIZATION), clientId, trantorFileId);
-                log("Received POST request from API. Client id: "+ clientId+" Authorization: "+ wcampDocument.getAuthToken());
-            } else {
-                // throw exception: (HttpServletResponse.SC_PRECONDITION_FAILED);
-            }
-        } else {
-            wcampDocument = new WcampPendingDoc(req.getHeader(HttpHeaders.COOKIE));
-            log("Received POST request from WCAMP" + "Cookie: " + wcampDocument.getAuthToken());
-        }
 
         URLConnection targetConnection = null;
         try {
 
-            if (wcampDocument != null) {
-                // This operation won't lock the Servlet's main thread.
-                // It's only a GET,so no response.OutputStream will be opened.
-                // No need for background executor.
-                wcampDocument.authorize();
-                log("Authorized "+wcampDocument.getNeededPerm()+" for session "+wcampDocument.getAuthToken());
+            if(null != req.getHeader(CustomHttpHeaders.X_TRANTOR_CLIENT_ID)){
+                String auth = req.getHeader(HttpHeaders.AUTHORIZATION);
+                String clientId = req.getHeader(CustomHttpHeaders.X_TRANTOR_CLIENT_ID);
+                String trantorFileId = req.getHeader(CustomHttpHeaders.X_TRANTOR_ASSIGNED_UPLOAD_ID);
+                wcampDocument = new WcampTempDoc(auth, clientId, trantorFileId);
+                log("Received POST request from API. Client id: "+ clientId+" Authorization: "+
+                            wcampDocument.getAuthToken());
+            } else {
+                wcampDocument = new WcampPendingDoc(req.getHeader(HttpHeaders.COOKIE));
+                //TODO check origin and raise 403 if not from WCAMP??
+                log("Received POST request from web session" + "Cookie: " + wcampDocument.getAuthToken());
             }
+
+            wcampDocument.authorize();
+            log("Authorized "+wcampDocument.getNeededPerm()+" for session "+wcampDocument.getAuthToken());
 
             targetConnection = targetUrl.openConnection();
             copyRequestHeaders(req, targetConnection);
             //  Note: These headers below would've been sent by default:
             // {
-            //   "User-Agent": "Java/1.7.0_17",
+            //   "User-Agent": "Java/1.a.b_cd",
             //   "Host": targetUrl.host() & .port(),
             //   "Accept": "text/html, image/gif, image/jpeg, *; q=.2, */*; q=.2",
             //   "Connection": "keep-alive",
@@ -152,18 +152,35 @@ public class StreamUploaderProxy extends HttpServlet implements JsonErrorRespons
 
             try (InputStream targetResponseIS = targetConnection.getInputStream()) {
                 byte[] outBytes = extractByteArray(targetResponseIS);  // note: byte[] holds max 2 GB (Java default)
+
                 copyResponseHeaders(targetConnection, res, outBytes.length);
+
+                String trantorUploadedFilesInfo = targetConnection.
+                        getHeaderField(CustomHttpHeaders.X_TRANTOR_UPLOADED_FILES_INFO);
+
                 AsyncContext ac = req.startAsync();
+                ac.addListener(new TrantorAsyncListener());
+
                 if(wcampDocument instanceof WcampTempDoc){
-                    executor.execute(new ArchiveTempDoc(ac, (WcampTempDoc)wcampDocument));
+                    executor.execute(new ArchiveTempDoc(ac, (WcampTempDoc)wcampDocument, trantorUploadedFilesInfo));
                 } else {
-                    String trantorUploadedFilesInfo = targetConnection.
-                            getHeaderField(CustomHttpHeaders.X_TRANTOR_UPLOADED_FILES_INFO);
                     executor.execute(new AddToPendingDocs(ac, (WcampPendingDoc)wcampDocument, trantorUploadedFilesInfo));
                 }
                 res.getOutputStream().write(outBytes);
             }
-        }catch (WcampNotAuthorizedException e){
+        } catch (EvilHeaderException e) {
+            String message = e.getMessage();
+            log(message);
+            writeErrorAsJson(res, HttpServletResponse.SC_FORBIDDEN, message);
+        } catch (MissingClientHeadersException e) {
+            String message = e.getMessage();
+            log(message);
+            writeErrorAsJson(res, HttpServletResponse.SC_PRECONDITION_FAILED, message);
+        } catch (DocumentNotFoundException e) {
+            String message = e.getMessage();
+            log(message);
+            writeErrorAsJson(res, HttpServletResponse.SC_NOT_FOUND, message);
+        } catch (WcampNotAuthorizedException e){
             String message = wcampDocument.getAuthToken()+" is not authorized to "+wcampDocument.getNeededPerm();
             log(message);
             writeErrorAsJson(res, HttpServletResponse.SC_UNAUTHORIZED, message);
@@ -187,44 +204,53 @@ public class StreamUploaderProxy extends HttpServlet implements JsonErrorRespons
             writeErrorAsJson(res, HttpServletResponse.SC_NOT_FOUND, message);
         } catch (IOException e) {
             if (null != targetConnection) {
-                int responseStatus = ((HttpURLConnection)targetConnection).getResponseCode();
+                int responseStatus = 0;
+                try {
+                    responseStatus = ((HttpURLConnection)targetConnection).getResponseCode();
+                } catch (IOException e1) {
+                    logServerErrorWithNonce(res);
+                    e1.printStackTrace();
+                }
                 String nonce = getErrorNonce();
                 String message = "Please review the logs for code "+ nonce;
                 log("---- Begin ErrorMessage for error code "+nonce+"\nReceived unexpected response status "
                         +responseStatus+" from POST "+targetUrl.toString());
                 writeErrorAsJson(res, HttpServletResponse.SC_BAD_GATEWAY, message);
             } else {
-                String nonce = getErrorNonce();
-                String message = "Please review the logs for code "+ nonce;
-                writeErrorAsJson(res, HttpServletResponse.SC_INTERNAL_SERVER_ERROR, message);
-                log("---- Begin StackTrace for error code "+nonce);
+                logServerErrorWithNonce(res);
                 e.printStackTrace();
             }
         } catch (RuntimeException e){
-            String nonce = getErrorNonce();
-            String message = "Please review the logs for code "+ nonce;
-            writeErrorAsJson(res, HttpServletResponse.SC_INTERNAL_SERVER_ERROR, message);
-            log("---- Begin StackTrace for error code "+nonce);
+            logServerErrorWithNonce(res);
             e.printStackTrace();
         }
     }
 
     private static void setStreamingMode(int contentLength, URLConnection conn) {
-        // Set streaming mode, else HttpURLConnection will buffer everything.
+
+        // See: http://stackoverflow.com/questions/2793150#2793153 (Streaming mode)
+        // Set streaming mode, else HttpURLConnection will buffer everything before actually sending it.
         if (contentLength > -1) {
-            // Content length is known beforehand, so no buffering will be taken place.
+            //Content length is known beforehand, so no internal buffering will be taken place.
             ((HttpURLConnection) conn).setFixedLengthStreamingMode(contentLength);
         } else {
             // Content length is unknown, so send in 1KB chunks (which will also be the internal buffer size).
+            // Note: the dst endpoint must be able to accept an InputStream!
             ((HttpURLConnection) conn).setChunkedStreamingMode(DEFAULT_CHUNK_SIZE);
         }
     }
 
-    private static void copyRequestHeaders(HttpServletRequest req, URLConnection proxyReq) {
+    private static void copyRequestHeaders(HttpServletRequest req, URLConnection proxyReq) throws EvilHeaderException {
         Enumeration enumerationOfHeaderNames = req.getHeaderNames();
 
         while (enumerationOfHeaderNames.hasMoreElements()) {
             String headerName = (String) enumerationOfHeaderNames.nextElement();
+
+            if (HttpHeaders.evilHeadersLc.containsKey(headerName.toLowerCase()) &&
+                    HttpHeaders.evilHeadersLc.get(headerName.toLowerCase()).equals(
+                            req.getHeader(headerName).toLowerCase())) {
+                throw new EvilHeaderException(headerName, req.getHeader(headerName));
+            }
 
             if (HttpHeaders.hopByHopHeadersLc.contains(headerName.toLowerCase()))
                 continue;
@@ -307,5 +333,12 @@ public class StreamUploaderProxy extends HttpServlet implements JsonErrorRespons
             e.printStackTrace();
         }
         return errorNonce;
+    }
+
+    private void logServerErrorWithNonce(HttpServletResponse res) {
+        String nonce = getErrorNonce();
+        String message = "Please review the logs for code "+ nonce;
+        writeErrorAsJson(res, HttpServletResponse.SC_INTERNAL_SERVER_ERROR, message);
+        log("---- Begin StackTrace for error code "+nonce);
     }
 }

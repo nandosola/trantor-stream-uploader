@@ -26,7 +26,7 @@ public class CustomHttpHeaders {
 
     /** Set by the API client */
     public static final String X_TRANTOR_CLIENT_ID = "X-Trantor-Client-Id";
-    public static final String X_TRANTOR_CLIENT_ASSIGNED_FILE_ID = "X-Trantor-Client-Assigned-File-Id";
+    public static final String X_TRANTOR_ASSIGNED_UPLOAD_ID = "X-Trantor-Assigned-Upload-Id";
 
     /** Set by FileServer */
     public static final String X_TRANTOR_UPLOADED_FILES_INFO = "X-Trantor-Uploaded-Files-Info";
@@ -36,7 +36,7 @@ public class CustomHttpHeaders {
     static {
         doNotCopyLc = new ArrayList<String>() {{
             add(X_TRANTOR_CLIENT_ID.toLowerCase());
-            add(X_TRANTOR_CLIENT_ASSIGNED_FILE_ID.toLowerCase());
+            add(X_TRANTOR_ASSIGNED_UPLOAD_ID.toLowerCase());
             add(X_TRANTOR_UPLOADED_FILES_INFO.toLowerCase());
         }};
     }

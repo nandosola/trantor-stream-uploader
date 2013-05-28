@@ -15,7 +15,9 @@
  */
 package cc.abstra.trantor.wcamp;
 
+import cc.abstra.trantor.HttpHeaders;
 import cc.abstra.trantor.HttpMethods;
+import cc.abstra.trantor.wcamp.exceptions.MissingClientHeadersException;
 import cc.abstra.trantor.wcamp.exceptions.*;
 
 import javax.servlet.http.HttpServletResponse;
@@ -24,7 +26,6 @@ import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.util.HashMap;
-import java.util.Iterator;
 import java.util.Map;
 
 /** This class interacts with Trantor's metadata front-end API, internally known as WCAMP */
@@ -33,16 +34,23 @@ public abstract class WcampDocumentResource implements AuthorizedResource {
     protected static final String WCAMP_URI = "http://localhost:8080";
     private static final int TEN_SEC = 10000;  //msec
     private static final String CHARSET = "UTF-8";
+    private static final String APPLICATION_JSON = "application/json";
 
-    protected Map<String, String> authHeader = new HashMap<>();
+    protected Map<String, String> headers = new HashMap<>();
     protected String authToken;
     protected String neededPerm;
 
 
-    protected WcampDocumentResource(String headerName, String token, String neededPerm) {
-        this.authToken = token;
-        this.neededPerm = neededPerm;
-        authHeader.put(headerName, authToken);
+    protected WcampDocumentResource(String headerName, String token, String neededPerm) throws MissingClientHeadersException {
+        if (null != token) {
+            this.authToken = token;
+            this.neededPerm = neededPerm;
+            headers.put(headerName, authToken);
+            // Our OAuth provider will send 403 to API clients, or else 302 to /login.html
+            headers.put(HttpHeaders.ACCEPT, APPLICATION_JSON);
+        } else {
+            throw new MissingClientHeadersException();
+        }
     }
 
     @Override
@@ -51,21 +59,18 @@ public abstract class WcampDocumentResource implements AuthorizedResource {
     }
 
     protected void restRequest(String url, String method) throws IOException {
-        restRequest(url, method, authHeader);  //Sending "Cookie" or "Authorization" header by default
+        restRequest(url, method, headers);  //Sending "Cookie" or "Authorization" header by default
     }
 
-    /** Custom headers */
-    protected void restRequest(String url, String method, Map<String, String> headers) throws IOException {
+    private void restRequest(String url, String method, Map<String, String> headers) throws IOException {
 
         HttpURLConnection connection = null;
         try {
             connection = (HttpURLConnection) new URL(url).openConnection();
             if (!headers.isEmpty()) {
-                Iterator it = headers.entrySet().iterator();
-                while (it.hasNext()) {
-                    Map.Entry pairs = (Map.Entry) it.next();
+                for (Map.Entry<String, String> stringStringEntry : headers.entrySet()) {
+                    Map.Entry pairs = (Map.Entry) stringStringEntry;
                     connection.setRequestProperty((String) pairs.getKey(), (String) pairs.getValue());
-                    it.remove(); // avoids a ConcurrentModificationException
                 }
             }
             connection.setConnectTimeout(TEN_SEC);
@@ -85,7 +90,7 @@ public abstract class WcampDocumentResource implements AuthorizedResource {
             int responseCode = connection.getResponseCode();
             if (400 <= responseCode) {
                 if (HttpServletResponse.SC_NOT_FOUND == responseCode) {
-                    throw new DocumentNotFoundException();
+                    throw new DocumentNotFoundException(url);
                 } else {
                     if (HttpServletResponse.SC_UNAUTHORIZED == responseCode ||
                             HttpServletResponse.SC_FORBIDDEN == responseCode) {

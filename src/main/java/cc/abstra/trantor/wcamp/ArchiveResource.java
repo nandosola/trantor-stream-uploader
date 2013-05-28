@@ -9,6 +9,5 @@ public interface ArchiveResource {
     public static final String ARCHIVE_CMD = "/archive/";
     public static final String NEEDED_PERM ="upload_doc";
 
-    public void verify() throws IOException;
-    public void archive() throws IOException;
+    public void archive(String fileInfo) throws IOException;
 }

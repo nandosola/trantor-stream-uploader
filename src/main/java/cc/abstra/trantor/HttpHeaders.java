@@ -17,7 +17,9 @@
 package cc.abstra.trantor;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Contains constant definitions for the HTTP header field names. See:
@@ -224,5 +226,13 @@ public final class HttpHeaders {
             add(RETRY_AFTER.toLowerCase());
         }};
     }
+
+    public static final Map<String, String> evilHeadersLc;
+    static {
+        evilHeadersLc = new HashMap<String,String>() {{
+            put(EXPECT.toLowerCase(), "100-continue");  //Used by .NET clients
+        }};
+    }
+
 
 }
