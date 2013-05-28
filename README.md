@@ -18,9 +18,9 @@ just use non-Rack stuff, such as Node.js, JavaEE or even the venerable FastCGI. 
 [read this](http://blog.plataformatec.com.br/2012/06/why-your-web-framework-should-not-adopt-rack-api/).
 
 Under Ruby, instead of monkey-patching Rack, many people use [Goliath](https://github.com/postrank-labs/goliath). Goliath handles streaming,
-[differently](https://github.com/postrank-labs/goliath/wiki/Streaming), even though it's Rack-based. But if you stick with Rack,
-perhaps you could use [jcommons-rack-upload](https://github.com/cowboyd/jcommons-rack-upload), which wraps `env['rack.input']` with
-a rewindable `java.io.ByteArrayInputStream`. But alas, AFAIK this later approach is just another monkey-patch.
+[differently](https://github.com/postrank-labs/goliath/wiki/Streaming), even though it's Rack-based. But if you stick with your favorite
+Rack-based framework, perhaps you could use [jcommons-rack-upload](https://github.com/cowboyd/jcommons-rack-upload), which
+wraps `env['rack.input']` with a rewindable `java.io.ByteArrayInputStream`. But alas, this later approach is just another monkey-patch.
 
 ### Motivations
 In my case, the motivation came from Trantor, an internal doc archiving system we are developing. Trantor is distributed,
