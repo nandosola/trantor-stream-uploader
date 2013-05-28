@@ -14,12 +14,12 @@ cool kids who just want to stream stuff *to* the server. But, is it possible to 
 Stream-uploading big files with Ruby Rack 1.x [is impossible](https://groups.google.com/forum/?fromgroups=#!topic/rack-devel/T5YE-aFzSIQ).
 The Problem is that [Rack would read the entire request body into memory](http://stackoverflow.com/questions/3027564), and there
 are no obvious ways to interact with raw requests and responses in this framework. AFAIK, to accomplish this task, people
-just use non-Rack stuff, such as Node.js, JavaEE or even the venerable FastCGI. And if you still don't believe me, just
+just use non-Ruby stuff, such as Node.js, JavaEE or even the venerable FastCGI. And if you still don't believe me, just
 [read this](http://blog.plataformatec.com.br/2012/06/why-your-web-framework-should-not-adopt-rack-api/).
 
 Under Ruby, instead of monkey-patching Rack, many people use [Goliath](https://github.com/postrank-labs/goliath). Goliath handles streaming,
 [differently](https://github.com/postrank-labs/goliath/wiki/Streaming), even though it's Rack-based. But if you stick with your favorite
-Rack-based framework, perhaps you could use [jcommons-rack-upload](https://github.com/cowboyd/jcommons-rack-upload), which
+Rack-based framework, perhaps you could use JRuby and [jcommons-rack-upload](https://github.com/cowboyd/jcommons-rack-upload), which
 wraps `env['rack.input']` with a rewindable `java.io.ByteArrayInputStream`. But alas, this later approach is just another monkey-patch.
 
 ### Motivations
