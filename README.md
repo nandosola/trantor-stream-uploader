@@ -7,8 +7,8 @@ quite ridiculous. And it's fast. Moreover, no external Java libraries are used.
 ### The problem
 While all the cool kids in Ruby are busy streaming stuff
 [from the server](http://www.intridea.com/blog/2012/5/24/building-streaming-rest-apis-with-ruby), there are other equally
-cool kids who just want to stream stuff *to* the server. But, ¿is it possible to accomplish this task using *only* Ruby web frameworks?
- And more importantly: if Rack is the de-facto engine for writing web frameworks in Ruby. ¿Is it enough?
+cool kids who just want to stream stuff *to* the server. But, is it possible to accomplish this task using *only* Ruby web frameworks?
+ And more importantly: if Rack is the de-facto engine for writing web frameworks in Ruby, is it enough?
 
 #### Bad news:
 Stream-uploading big files with Ruby Rack 1.x [is impossible](https://groups.google.com/forum/?fromgroups=#!topic/rack-devel/T5YE-aFzSIQ).
