@@ -98,8 +98,8 @@
                 <deploy.user>deployer</deploy.user>
                 <deploy.command>
                     cd ${app.home};
-                    sudo -u ${appsrv.user} $JRUBY_HOME/bin/torquebox undeploy;
-                    sudo -u ${appsrv.user} $JRUBY_HOME/bin/torquebox deploy
+                    sudo -u ${appsrv.user} rm $JBOSS_HOME/standalone/deployments/${app.war}; sleep 5;
+                    sudo -u ${appsrv.user} cp ${app.war} $JBOSS_HOME/standalone/deployments
                 </deploy.command>
             </properties>
             <build>
