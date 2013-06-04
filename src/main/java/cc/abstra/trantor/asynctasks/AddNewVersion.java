@@ -1,26 +1,26 @@
 package cc.abstra.trantor.asynctasks;
 
-import cc.abstra.trantor.wcamp.WcampDocUploadedFromWeb;
+import cc.abstra.trantor.wcamp.WcampDocumentResource;
 
 import javax.servlet.AsyncContext;
 import java.io.IOException;
 
-public class AddToPendingDocs implements Runnable {
+public class AddNewVersion implements Runnable {
 
     private AsyncContext ac;
-    private final WcampDocUploadedFromWeb pendingDoc;
+    private final WcampDocumentResource versionedDoc;
     private final String filesInfo;
 
-    public AddToPendingDocs(AsyncContext ac, WcampDocUploadedFromWeb pendingDoc, String filesInfo) {
+    public AddNewVersion(AsyncContext ac, WcampDocumentResource pendingDoc, String filesInfo) {
         this.ac = ac;
-        this.pendingDoc = pendingDoc;
+        this.versionedDoc = pendingDoc;
         this.filesInfo = filesInfo;
     }
 
     @Override
     public void run() {
         try {
-            pendingDoc.add(filesInfo);
+            versionedDoc.addVersion(filesInfo);
         } catch (IOException e) {
             e.printStackTrace();
         } finally {

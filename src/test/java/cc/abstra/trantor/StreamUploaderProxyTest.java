@@ -16,8 +16,8 @@
 package cc.abstra.trantor;
 
 import cc.abstra.trantor.wcamp.CustomHttpHeaders;
-import cc.abstra.trantor.wcamp.WcampPendingDoc;
-import cc.abstra.trantor.wcamp.WcampTempDoc;
+import cc.abstra.trantor.wcamp.WcampDocUploadedFromAPI;
+import cc.abstra.trantor.wcamp.WcampDocUploadedFromWeb;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Ignore;
@@ -68,8 +68,8 @@ public class StreamUploaderProxyTest {
     private OutputStream targetReqOutputStream;
     private MockServletInputStream clientRequestInputStream;
     private ServletOutputStream responseOutputStream;
-    private WcampPendingDoc pendingDoc;
-    private WcampTempDoc tempDoc;
+    private WcampDocUploadedFromWeb pendingDoc;
+    private WcampDocUploadedFromAPI tempDoc;
     private AsyncContext asyncCtx;
 
     @InjectMocks private StreamUploaderProxy uploadProxy = new StreamUploaderProxy();
@@ -115,8 +115,8 @@ public class StreamUploaderProxyTest {
         responseOutputStream = mock(ServletOutputStream.class);
 
         asyncCtx = mock(AsyncContext.class);
-        pendingDoc = mock(WcampPendingDoc.class);
-        tempDoc = mock(WcampTempDoc.class);
+        pendingDoc = mock(WcampDocUploadedFromWeb.class);
+        tempDoc = mock(WcampDocUploadedFromAPI.class);
     }
 
     /* Mock a static method (for future reference):
@@ -139,7 +139,7 @@ public class StreamUploaderProxyTest {
     public void testDoSuccessfulPostWithKnownContentLengthViaWebClient() throws Exception {
 
         whenNew(URL.class).withArguments(testUrl).thenReturn(targetUrl);
-        whenNew(WcampPendingDoc.class).withArguments(anyString()).thenReturn(pendingDoc);
+        whenNew(WcampDocUploadedFromWeb.class).withArguments(anyString(), anyString()).thenReturn(pendingDoc);
 
         when(request.getHeader(eq(HttpHeaders.COOKIE))).thenReturn(requestHeaders.get(HttpHeaders.COOKIE));
         when(targetUrl.openConnection()).thenReturn(urlConnection);
@@ -173,7 +173,7 @@ public class StreamUploaderProxyTest {
         uploadProxy.doPost(request, response);
 
         verifyNew(URL.class).withArguments(testUrl);  // injected dependency
-        verifyNew(WcampPendingDoc.class).withArguments(requestHeaders.get(HttpHeaders.COOKIE));
+        verifyNew(WcampDocUploadedFromWeb.class).withArguments(eq(requestHeaders.get(HttpHeaders.COOKIE)), isNull());
 
         // This won't work:
         // See: https://code.google.com/p/powermock/issues/detail?id=297

@@ -1,6 +1,6 @@
 package cc.abstra.trantor.asynctasks;
 
-import cc.abstra.trantor.wcamp.WcampTempDoc;
+import cc.abstra.trantor.wcamp.WcampDocUploadedFromAPI;
 
 import javax.servlet.AsyncContext;
 import java.io.IOException;
@@ -8,10 +8,10 @@ import java.io.IOException;
 public class ArchiveTempDoc implements Runnable {
 
     private AsyncContext ac;
-    private final WcampTempDoc tempDocument;
+    private final WcampDocUploadedFromAPI tempDocument;
     private final String filesInfo;
 
-    public ArchiveTempDoc(AsyncContext ac, WcampTempDoc tempDocument, String filesInfo) {
+    public ArchiveTempDoc(AsyncContext ac, WcampDocUploadedFromAPI tempDocument, String filesInfo) {
         this.ac = ac;
         this.tempDocument = tempDocument;
         this.filesInfo = filesInfo;

@@ -36,18 +36,29 @@ public abstract class WcampDocumentResource implements AuthorizedResource {
     private static final String CHARSET = "UTF-8";
     private static final String APPLICATION_JSON = "application/json";
 
+    public static final String VERSION = "version";
+    protected static final String DOCS_BY_CODE = "/documents/code/";
+    protected static final String VERSION_CMD = "/addversion";
+
     protected Map<String, String> headers = new HashMap<>();
     protected String authToken;
     protected String neededPerm;
+    protected String code;
+    protected String uploadType;
 
+    protected WcampDocumentResource(String headerName, String token, String neededPerm, String docCode)
+            throws MissingClientHeadersException, IOException {
 
-    protected WcampDocumentResource(String headerName, String token, String neededPerm) throws MissingClientHeadersException {
         if (null != token) {
             this.authToken = token;
             this.neededPerm = neededPerm;
             headers.put(headerName, authToken);
             // Our OAuth provider will send 403 to API clients, or else 302 to /login.html
             headers.put(HttpHeaders.ACCEPT, APPLICATION_JSON);
+            if (null != docCode) {
+                verifyDocCode(docCode);
+                this.code = docCode;
+            }
         } else {
             throw new MissingClientHeadersException();
         }
@@ -57,6 +68,8 @@ public abstract class WcampDocumentResource implements AuthorizedResource {
     public void authorize() throws IOException {
         restRequest(WCAMP_URI + PERMISSION + neededPerm, HttpMethods.GET);
     }
+
+    public abstract void addVersion(String filesInfo) throws IOException;
 
     protected void restRequest(String url, String method) throws IOException {
         restRequest(url, method, headers);  //Sending "Cookie" or "Authorization" header by default
@@ -110,11 +123,28 @@ public abstract class WcampDocumentResource implements AuthorizedResource {
         }
     }
 
+    private void verifyDocCode(String docCode) throws IOException {
+        restRequest(WCAMP_URI + DOCS_BY_CODE + docCode, HttpMethods.HEAD);
+
+    }
+
     public String getAuthToken() {
         return authToken;
     }
 
     public String getNeededPerm() {
         return neededPerm;
+    }
+
+    public void setUploadType(String type) {
+        if(CustomHttpHeaders.validUploadTypesLc.contains(type.toLowerCase())){
+            this.uploadType = type;
+        } else {
+            throw new UnsupportedOperationException("Unknown upload type");
+        }
+    }
+
+    public String getUploadType() {
+        return uploadType;
     }
 }

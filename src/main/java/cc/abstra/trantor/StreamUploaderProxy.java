@@ -16,15 +16,16 @@
 
 package cc.abstra.trantor;
 
+import cc.abstra.trantor.asynctasks.AddNewVersion;
 import cc.abstra.trantor.asynctasks.AddToPendingDocs;
 import cc.abstra.trantor.asynctasks.ArchiveTempDoc;
 import cc.abstra.trantor.asynctasks.TrantorAsyncListener;
 import cc.abstra.trantor.exceptions.EvilHeaderException;
+import cc.abstra.trantor.wcamp.WcampDocUploadedFromAPI;
+import cc.abstra.trantor.wcamp.WcampDocUploadedFromWeb;
 import cc.abstra.trantor.wcamp.exceptions.MissingClientHeadersException;
 import cc.abstra.trantor.wcamp.CustomHttpHeaders;
 import cc.abstra.trantor.wcamp.WcampDocumentResource;
-import cc.abstra.trantor.wcamp.WcampPendingDoc;
-import cc.abstra.trantor.wcamp.WcampTempDoc;
 import cc.abstra.trantor.wcamp.exceptions.DocumentNotFoundException;
 import cc.abstra.trantor.wcamp.exceptions.WcampNotAuthorizedException;
 
@@ -106,21 +107,28 @@ public class StreamUploaderProxy extends HttpServlet implements JsonErrorRespons
         URLConnection targetConnection = null;
         try {
 
+            String documentCode =  req.getHeader(CustomHttpHeaders.X_TRANTOR_DOCUMENT_CODE);  // case-sensitive
+
             if(null != req.getHeader(CustomHttpHeaders.X_TRANTOR_CLIENT_ID)){
                 String auth = req.getHeader(HttpHeaders.AUTHORIZATION);
                 String clientId = req.getHeader(CustomHttpHeaders.X_TRANTOR_CLIENT_ID);
                 String trantorFileId = req.getHeader(CustomHttpHeaders.X_TRANTOR_ASSIGNED_UPLOAD_ID);
-                wcampDocument = new WcampTempDoc(auth, clientId, trantorFileId);
+                wcampDocument = new WcampDocUploadedFromAPI(auth, clientId, trantorFileId, documentCode);
                 log("Received POST request from API. Client id: "+ clientId+" Authorization: "+
-                            wcampDocument.getAuthToken());
+                        wcampDocument.getAuthToken());
             } else {
-                wcampDocument = new WcampPendingDoc(req.getHeader(HttpHeaders.COOKIE));
+                wcampDocument = new WcampDocUploadedFromWeb(req.getHeader(HttpHeaders.COOKIE), documentCode);
                 //TODO check origin and raise 403 if not from WCAMP??
                 log("Received POST request from web session" + "Cookie: " + wcampDocument.getAuthToken());
             }
 
             wcampDocument.authorize();
             log("Authorized "+wcampDocument.getNeededPerm()+" for session "+wcampDocument.getAuthToken());
+
+            String uploadType = req.getHeader(CustomHttpHeaders.X_TRANTOR_UPLOAD_TYPE);
+            if (null != uploadType) {
+                wcampDocument.setUploadType(uploadType.toLowerCase());
+            }
 
             targetConnection = targetUrl.openConnection();
             copyRequestHeaders(req, targetConnection);
@@ -161,14 +169,25 @@ public class StreamUploaderProxy extends HttpServlet implements JsonErrorRespons
                 AsyncContext ac = req.startAsync();
                 ac.addListener(new TrantorAsyncListener());
 
-                if(wcampDocument instanceof WcampTempDoc){
-                    executor.execute(new ArchiveTempDoc(ac, (WcampTempDoc)wcampDocument, trantorUploadedFilesInfo));
+                if (WcampDocumentResource.VERSION.equals(wcampDocument.getUploadType())){
+                    executor.execute(new AddNewVersion(ac, wcampDocument, trantorUploadedFilesInfo));
                 } else {
-                    executor.execute(new AddToPendingDocs(ac, (WcampPendingDoc)wcampDocument, trantorUploadedFilesInfo));
+                    if (wcampDocument instanceof WcampDocUploadedFromAPI){
+                        executor.execute(new ArchiveTempDoc(ac, (WcampDocUploadedFromAPI)wcampDocument,
+                                trantorUploadedFilesInfo));
+                    } else {
+                        executor.execute(new AddToPendingDocs(ac, (WcampDocUploadedFromWeb)wcampDocument,
+                                trantorUploadedFilesInfo));
+                    }
                 }
+
                 res.getOutputStream().write(outBytes);
             }
-        } catch (EvilHeaderException e) {
+        } catch (UnsupportedOperationException e) {
+            String message = e.getMessage();
+            log(message);
+            writeErrorAsJson(res, HttpServletResponse.SC_FORBIDDEN, message);
+        } catch (EvilHeaderException e) {  // PowerMockito does not handle multicatches well
             String message = e.getMessage();
             log(message);
             writeErrorAsJson(res, HttpServletResponse.SC_FORBIDDEN, message);

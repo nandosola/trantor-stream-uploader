@@ -32,12 +32,28 @@ public class CustomHttpHeaders {
     public static final String X_TRANTOR_UPLOADED_FILES_INFO = "X-Trantor-Uploaded-Files-Info";
     //example: X-Trantor-Uploaded-Files-Info: deadbeef/Brian's Life; coffeebabe/img_009; ...
 
+    /** Set by the Wcamp client
+     * Can be either blank or 'version'
+     */
+    public static final String X_TRANTOR_UPLOAD_TYPE = "X-Trantor-Upload-Type";
+    public static final String X_TRANTOR_UPLOAD_NAME = "X-Trantor-Upload-Name";
+    public static final String X_TRANTOR_DOCUMENT_CODE = "X-Trantor-Document-Code";
+
+    public static final List<String> validUploadTypesLc;
+    static {
+        validUploadTypesLc = new ArrayList<String>() {{
+            add("version");
+        }};
+    }
+
     public static final List<String> doNotCopyLc;
     static {
         doNotCopyLc = new ArrayList<String>() {{
             add(X_TRANTOR_CLIENT_ID.toLowerCase());
             add(X_TRANTOR_ASSIGNED_UPLOAD_ID.toLowerCase());
             add(X_TRANTOR_UPLOADED_FILES_INFO.toLowerCase());
+            add(X_TRANTOR_UPLOAD_TYPE.toLowerCase());
+            add(X_TRANTOR_DOCUMENT_CODE.toLowerCase());
         }};
     }
 }

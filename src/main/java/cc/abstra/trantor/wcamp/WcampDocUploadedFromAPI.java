@@ -7,13 +7,15 @@ import cc.abstra.trantor.wcamp.exceptions.MissingClientHeadersException;
 import java.io.IOException;
 
 
-public class WcampTempDoc extends WcampDocumentResource implements ArchiveResource {
+public class WcampDocUploadedFromAPI extends WcampDocumentResource implements ArchiveResource {
 
     private String clientId;
     private String tempDocId;
 
-    public WcampTempDoc(String authToken, String clientId, String tempDocId) throws IOException, MissingClientHeadersException {
-        super(HttpHeaders.AUTHORIZATION, authToken, NEEDED_PERM);
+    public WcampDocUploadedFromAPI(String authToken, String clientId, String tempDocId, String docCode)
+            throws IOException, MissingClientHeadersException {
+
+        super(HttpHeaders.AUTHORIZATION, authToken, NEEDED_PERM, docCode);
         if (null != clientId && null != tempDocId) {
             this.clientId = clientId;
             this.tempDocId = tempDocId;
@@ -25,6 +27,16 @@ public class WcampTempDoc extends WcampDocumentResource implements ArchiveResour
 
     private void verify() throws IOException {
         restRequest(WCAMP_URI + PATH + tempDocId, HttpMethods.HEAD);
+    }
+
+    @Override
+    public void setUploadType(String type) {
+        throw new UnsupportedOperationException("Not yet implemented");
+    }
+
+    @Override
+    public void addVersion(String filesInfo) throws IOException {
+        throw new UnsupportedOperationException("Not yet implemented");
     }
 
     @Override
