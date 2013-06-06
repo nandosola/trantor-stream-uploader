@@ -226,15 +226,24 @@ public class StreamUploaderProxy extends HttpServlet implements JsonErrorRespons
                 int responseStatus = 0;
                 try {
                     responseStatus = ((HttpURLConnection)targetConnection).getResponseCode();
+                    if(400<=responseStatus && 500>responseStatus) {
+                        // Useful info for the client
+                        InputStream responseErrStream = ((HttpURLConnection) targetConnection).getErrorStream();
+                        // TODO refactor the lines below so that the same code is used for the servlet response in case of success
+                        byte errBytes[] = extractByteArray(responseErrStream);
+                        copyResponseHeaders(targetConnection, res, errBytes.length);
+                        res.getOutputStream().write(errBytes);
+                    } else {
+                        String nonce = getErrorNonce();
+                        String message = "Please review the logs for code "+ nonce;
+                        log("---- Begin ErrorMessage for error code "+nonce+"\nReceived unexpected response status "
+                                +responseStatus+" from POST "+targetUrl.toString());
+                        writeErrorAsJson(res, HttpServletResponse.SC_BAD_GATEWAY, message);
+                    }
                 } catch (IOException e1) {
                     logServerErrorWithNonce(res);
                     e1.printStackTrace();
                 }
-                String nonce = getErrorNonce();
-                String message = "Please review the logs for code "+ nonce;
-                log("---- Begin ErrorMessage for error code "+nonce+"\nReceived unexpected response status "
-                        +responseStatus+" from POST "+targetUrl.toString());
-                writeErrorAsJson(res, HttpServletResponse.SC_BAD_GATEWAY, message);
             } else {
                 logServerErrorWithNonce(res);
                 e.printStackTrace();
