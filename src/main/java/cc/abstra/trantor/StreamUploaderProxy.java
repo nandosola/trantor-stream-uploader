@@ -185,31 +185,31 @@ public class StreamUploaderProxy extends HttpServlet implements JsonErrorRespons
             }
         } catch (UnsupportedOperationException e) {
             String message = e.getMessage();
-            log(message);
+            log(message, e);
             writeErrorAsJson(res, HttpServletResponse.SC_FORBIDDEN, message);
         } catch (EvilHeaderException e) {  // PowerMockito does not handle multicatches well
             String message = e.getMessage();
-            log(message);
+            log(message, e);
             writeErrorAsJson(res, HttpServletResponse.SC_FORBIDDEN, message);
         } catch (MissingClientHeadersException e) {
             String message = e.getMessage();
-            log(message);
+            log(message, e);
             writeErrorAsJson(res, HttpServletResponse.SC_PRECONDITION_FAILED, message);
         } catch (DocumentNotFoundException e) {
             String message = e.getMessage();
-            log(message);
+            log(message, e);
             writeErrorAsJson(res, HttpServletResponse.SC_NOT_FOUND, message);
         } catch (WcampNotAuthorizedException e){
             String message = wcampDocument.getAuthToken()+" is not authorized to "+wcampDocument.getNeededPerm();
-            log(message);
+            log(message, e);
             writeErrorAsJson(res, HttpServletResponse.SC_UNAUTHORIZED, message);
         } catch (ConnectException e) {
             String message = "Received unexpected response from "+targetUrl.toString()+": "+e.getCause();
-            log(message);
+            log(message, e);
             writeErrorAsJson(res, HttpServletResponse.SC_BAD_GATEWAY, message);
         } catch (SocketTimeoutException e) {
             String message = "Timed out waiting for "+targetUrl.toString();
-            log(message);
+            log(message, e);
             writeErrorAsJson(res, HttpServletResponse.SC_GATEWAY_TIMEOUT, message);
         } catch (FileNotFoundException e){
             String uri;
@@ -219,7 +219,7 @@ public class StreamUploaderProxy extends HttpServlet implements JsonErrorRespons
                 uri = testUrl;
             }
             String message = "Please check that "+uri+" exists";
-            log(message);
+            log(message, e);
             writeErrorAsJson(res, HttpServletResponse.SC_NOT_FOUND, message);
         } catch (IOException e) {
             if (null != targetConnection) {
