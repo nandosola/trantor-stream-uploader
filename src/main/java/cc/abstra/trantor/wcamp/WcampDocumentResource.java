@@ -17,7 +17,6 @@ package cc.abstra.trantor.wcamp;
 
 import cc.abstra.trantor.HttpHeaders;
 import cc.abstra.trantor.HttpMethods;
-import cc.abstra.trantor.wcamp.exceptions.MissingClientHeadersException;
 import cc.abstra.trantor.wcamp.exceptions.*;
 
 import javax.servlet.http.HttpServletResponse;
@@ -29,24 +28,22 @@ import java.util.HashMap;
 import java.util.Map;
 
 /** This class interacts with Trantor's metadata front-end API, internally known as WCAMP */
-public abstract class WcampDocumentResource implements AuthorizedResource {
+public abstract class WcampDocumentResource implements AuthorizedResource, VersionedResource {
 
     protected static final String WCAMP_URI = "http://localhost:8080";
     private static final int TEN_SEC = 10000;  //msec
     private static final String CHARSET = "UTF-8";
     private static final String APPLICATION_JSON = "application/json";
 
-    public static final String VERSION = "version";
-    protected static final String DOCS_BY_CODE = "/documents/code/";
-    protected static final String VERSION_CMD = "/addversion";
+    public static final String RESOURCE_PATH = "/documents/";
 
     protected Map<String, String> headers = new HashMap<>();
     protected String authToken;
     protected String neededPerm;
-    protected String code;
+    protected String id;
     protected String uploadType;
 
-    protected WcampDocumentResource(String headerName, String token, String neededPerm, String docCode)
+    protected WcampDocumentResource(String headerName, String token, String neededPerm, String uploadIdentifier)
             throws MissingClientHeadersException, IOException {
 
         if (null != token) {
@@ -55,21 +52,25 @@ public abstract class WcampDocumentResource implements AuthorizedResource {
             headers.put(headerName, authToken);
             // Our OAuth provider will send 403 to API clients, or else 302 to /login.html
             headers.put(HttpHeaders.ACCEPT, APPLICATION_JSON);
-            if (null != docCode) {
-                verifyDocCode(docCode);
-                this.code = docCode;
-            }
+
         } else {
-            throw new MissingClientHeadersException();
+            throw new MissingClientHeadersException(CustomHttpHeaders.X_TRANTOR_CLIENT_ID + ", " +
+                    CustomHttpHeaders.X_TRANTOR_ASSIGNED_UPLOAD_ID);
         }
+
+        if (null != uploadIdentifier) {
+            this.setUploadType(uploadIdentifier.toLowerCase());
+        }
+    }
+
+    protected void verify(String id, String path) throws IOException {
+        restRequest(WCAMP_URI + path + id, HttpMethods.HEAD);
     }
 
     @Override
     public void authorize() throws IOException {
         restRequest(WCAMP_URI + PERMISSION + neededPerm, HttpMethods.GET);
     }
-
-    public abstract void addVersion(String filesInfo) throws IOException;
 
     protected void restRequest(String url, String method) throws IOException {
         restRequest(url, method, headers);  //Sending "Cookie" or "Authorization" header by default
@@ -123,11 +124,6 @@ public abstract class WcampDocumentResource implements AuthorizedResource {
         }
     }
 
-    private void verifyDocCode(String docCode) throws IOException {
-        restRequest(WCAMP_URI + DOCS_BY_CODE + docCode, HttpMethods.HEAD);
-
-    }
-
     public String getAuthToken() {
         return authToken;
     }
@@ -136,7 +132,7 @@ public abstract class WcampDocumentResource implements AuthorizedResource {
         return neededPerm;
     }
 
-    public void setUploadType(String type) {
+    private void setUploadType(String type) {
         if(CustomHttpHeaders.validUploadTypesLc.contains(type.toLowerCase())){
             this.uploadType = type;
         } else {

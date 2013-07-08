@@ -20,7 +20,7 @@ public class AddToPendingDocs implements Runnable {
     @Override
     public void run() {
         try {
-            pendingDoc.add(filesInfo);
+            pendingDoc.addToWorklist(filesInfo);
         } catch (IOException e) {
             e.printStackTrace();
         } finally {

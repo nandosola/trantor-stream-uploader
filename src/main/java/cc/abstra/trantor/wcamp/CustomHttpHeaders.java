@@ -37,7 +37,7 @@ public class CustomHttpHeaders {
      */
     public static final String X_TRANTOR_UPLOAD_TYPE = "X-Trantor-Upload-Type";
     public static final String X_TRANTOR_UPLOAD_NAME = "X-Trantor-Upload-Name";
-    public static final String X_TRANTOR_DOCUMENT_CODE = "X-Trantor-Document-Code";
+    public static final String X_TRANTOR_DOCUMENT_ID = "X-Trantor-Document-Id";
 
     public static final List<String> validUploadTypesLc;
     static {
@@ -53,7 +53,7 @@ public class CustomHttpHeaders {
             add(X_TRANTOR_ASSIGNED_UPLOAD_ID.toLowerCase());
             add(X_TRANTOR_UPLOADED_FILES_INFO.toLowerCase());
             add(X_TRANTOR_UPLOAD_TYPE.toLowerCase());
-            add(X_TRANTOR_DOCUMENT_CODE.toLowerCase());
+            add(X_TRANTOR_DOCUMENT_ID.toLowerCase());
         }};
     }
 }

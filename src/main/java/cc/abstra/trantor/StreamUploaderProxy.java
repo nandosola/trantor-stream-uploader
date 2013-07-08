@@ -107,28 +107,24 @@ public class StreamUploaderProxy extends HttpServlet implements JsonErrorRespons
         URLConnection targetConnection = null;
         try {
 
-            String documentCode =  req.getHeader(CustomHttpHeaders.X_TRANTOR_DOCUMENT_CODE);  // case-sensitive
+            String uploadType = req.getHeader(CustomHttpHeaders.X_TRANTOR_UPLOAD_TYPE);
 
             if(null != req.getHeader(CustomHttpHeaders.X_TRANTOR_CLIENT_ID)){
                 String auth = req.getHeader(HttpHeaders.AUTHORIZATION);
                 String clientId = req.getHeader(CustomHttpHeaders.X_TRANTOR_CLIENT_ID);
-                String trantorFileId = req.getHeader(CustomHttpHeaders.X_TRANTOR_ASSIGNED_UPLOAD_ID);
-                wcampDocument = new WcampDocUploadedFromAPI(auth, clientId, trantorFileId, documentCode);
+                String trantorTempFileId = req.getHeader(CustomHttpHeaders.X_TRANTOR_ASSIGNED_UPLOAD_ID);
+                wcampDocument = new WcampDocUploadedFromAPI(auth, clientId, trantorTempFileId, uploadType);
                 log("Received POST request from API. Client id: "+ clientId+" Authorization: "+
                         wcampDocument.getAuthToken());
             } else {
-                wcampDocument = new WcampDocUploadedFromWeb(req.getHeader(HttpHeaders.COOKIE), documentCode);
+                String documentIdentifier =  req.getHeader(CustomHttpHeaders.X_TRANTOR_DOCUMENT_ID);
+                wcampDocument = new WcampDocUploadedFromWeb(req.getHeader(HttpHeaders.COOKIE), documentIdentifier, uploadType);
                 //TODO check origin and raise 403 if not from WCAMP??
                 log("Received POST request from web session" + "Cookie: " + wcampDocument.getAuthToken());
             }
 
             wcampDocument.authorize();
             log("Authorized "+wcampDocument.getNeededPerm()+" for session "+wcampDocument.getAuthToken());
-
-            String uploadType = req.getHeader(CustomHttpHeaders.X_TRANTOR_UPLOAD_TYPE);
-            if (null != uploadType) {
-                wcampDocument.setUploadType(uploadType.toLowerCase());
-            }
 
             targetConnection = targetUrl.openConnection();
             copyRequestHeaders(req, targetConnection);

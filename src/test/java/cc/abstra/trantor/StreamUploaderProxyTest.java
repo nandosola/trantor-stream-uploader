@@ -139,7 +139,7 @@ public class StreamUploaderProxyTest {
     public void testDoSuccessfulPostWithKnownContentLengthViaWebClient() throws Exception {
 
         whenNew(URL.class).withArguments(testUrl).thenReturn(targetUrl);
-        whenNew(WcampDocUploadedFromWeb.class).withArguments(anyString(), anyString()).thenReturn(pendingDoc);
+        whenNew(WcampDocUploadedFromWeb.class).withArguments(anyString(), anyString(), anyString()).thenReturn(pendingDoc);
 
         when(request.getHeader(eq(HttpHeaders.COOKIE))).thenReturn(requestHeaders.get(HttpHeaders.COOKIE));
         when(targetUrl.openConnection()).thenReturn(urlConnection);
@@ -173,7 +173,7 @@ public class StreamUploaderProxyTest {
         uploadProxy.doPost(request, response);
 
         verifyNew(URL.class).withArguments(testUrl);  // injected dependency
-        verifyNew(WcampDocUploadedFromWeb.class).withArguments(eq(requestHeaders.get(HttpHeaders.COOKIE)), isNull());
+        verifyNew(WcampDocUploadedFromWeb.class).withArguments(eq(requestHeaders.get(HttpHeaders.COOKIE)), isNull(), isNull());
 
         // This won't work:
         // See: https://code.google.com/p/powermock/issues/detail?id=297
@@ -211,7 +211,7 @@ public class StreamUploaderProxyTest {
         // verify res.getOutputStream().write() <-- targetResponseIS (body & headers)
         verify(urlConnection).getInputStream();
         verify(response).getOutputStream();
-        verify(pendingDoc).add(eq("c0ffeeb4b3/example 1 title; f00b4rb4z/title_example_2"));
+        verify(pendingDoc).addToWorklist(eq("c0ffeeb4b3/example 1 title; f00b4rb4z/title_example_2"));
 
         verify(responseOutputStream).write(aryEq(remoteResponseStr.getBytes()));
     }
