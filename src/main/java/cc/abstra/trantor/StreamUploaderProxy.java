@@ -204,7 +204,7 @@ public class StreamUploaderProxy extends HttpServlet implements JsonErrorRespons
             log(message, e);
             writeErrorAsJson(res, HttpServletResponse.SC_UNAUTHORIZED, message);
         } catch (ConnectException e) {
-            String message = "Received unexpected response from "+targetUrl.toString()+": "+e.getCause();
+            String message = "Received unexpected response from "+targetUrl.toString()+": "+e.getMessage();
             log(message, e);
             writeErrorAsJson(res, HttpServletResponse.SC_BAD_GATEWAY, message);
         } catch (SocketTimeoutException e) {
