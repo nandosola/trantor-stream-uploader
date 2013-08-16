@@ -238,15 +238,16 @@ public class StreamUploaderProxy extends HttpServlet implements JsonErrorRespons
                     }
                 } catch (IOException e1) {
                     logServerErrorWithNonce(res);
-                    e1.printStackTrace();
+                    log("Exception occurred while catching IOException", e);
+                    log("Caused by", e);
                 }
             } else {
                 logServerErrorWithNonce(res);
-                e.printStackTrace();
+                log("Exception", e);
             }
         } catch (RuntimeException e){
             logServerErrorWithNonce(res);
-            e.printStackTrace();
+            log("Exception", e);
         }
     }
 
