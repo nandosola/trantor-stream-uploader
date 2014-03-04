@@ -21,11 +21,8 @@ import cc.abstra.trantor.asynctasks.AddToPendingDocs;
 import cc.abstra.trantor.asynctasks.ArchiveTempDoc;
 import cc.abstra.trantor.asynctasks.TrantorAsyncListener;
 import cc.abstra.trantor.exceptions.EvilHeaderException;
-import cc.abstra.trantor.wcamp.WcampDocUploadedFromAPI;
-import cc.abstra.trantor.wcamp.WcampDocUploadedFromWeb;
+import cc.abstra.trantor.wcamp.*;
 import cc.abstra.trantor.wcamp.exceptions.MissingClientHeadersException;
-import cc.abstra.trantor.wcamp.CustomHttpHeaders;
-import cc.abstra.trantor.wcamp.WcampDocumentResource;
 import cc.abstra.trantor.wcamp.exceptions.DocumentNotFoundException;
 import cc.abstra.trantor.wcamp.exceptions.WcampNotAuthorizedException;
 
@@ -107,24 +104,16 @@ public class StreamUploaderProxy extends HttpServlet implements JsonErrorRespons
         URLConnection targetConnection = null;
         try {
 
-            String uploadType = req.getHeader(CustomHttpHeaders.X_TRANTOR_UPLOAD_TYPE);
-
-            if(null != req.getHeader(CustomHttpHeaders.X_TRANTOR_CLIENT_ID)){
-                String auth = req.getHeader(HttpHeaders.AUTHORIZATION);
-                String clientId = req.getHeader(CustomHttpHeaders.X_TRANTOR_CLIENT_ID);
-                String trantorTempFileId = req.getHeader(CustomHttpHeaders.X_TRANTOR_ASSIGNED_UPLOAD_ID);
-                wcampDocument = new WcampDocUploadedFromAPI(auth, clientId, trantorTempFileId, uploadType);
-                log("Received POST request from API. Client id: "+ clientId+" Authorization: "+
-                        wcampDocument.getAuthToken());
-            } else {
-                String documentIdentifier =  req.getHeader(CustomHttpHeaders.X_TRANTOR_DOCUMENT_ID);
-                wcampDocument = new WcampDocUploadedFromWeb(req.getHeader(HttpHeaders.COOKIE), documentIdentifier, uploadType);
-                //TODO check origin and raise 403 if not from WCAMP??
+            wcampDocument = WcampDocumentResourceFactory.create(req);
+            if (wcampDocument instanceof WcampDocUploadedFromWeb) {
                 log("Received POST request from web session" + "Cookie: " + wcampDocument.getAuthToken());
-            }
 
-            wcampDocument.authorize();
-            log("Authorized "+wcampDocument.getNeededPerm()+" for session "+wcampDocument.getAuthToken());
+            } else {
+                if (wcampDocument instanceof WcampDocUploadedFromAPI)
+                    log("Received POST request from API. Client docId: "+
+                            ((WcampDocUploadedFromAPI) wcampDocument).getClientId() +" Authorization: "+
+                            wcampDocument.getAuthToken());
+            }
 
             targetConnection = targetUrl.openConnection();
             copyRequestHeaders(req, targetConnection);
@@ -165,7 +154,8 @@ public class StreamUploaderProxy extends HttpServlet implements JsonErrorRespons
                 AsyncContext ac = req.startAsync();
                 ac.addListener(new TrantorAsyncListener());
 
-                if (WcampDocumentResource.VERSION.equals(wcampDocument.getUploadType())){
+                //TODO use futures to assure a more robust error handling
+                if (VersionedResource.VERSION.equals(wcampDocument.getUploadType())){
                     executor.execute(new AddNewVersion(ac, wcampDocument, trantorUploadedFilesInfo));
                 } else {
                     if (wcampDocument instanceof WcampDocUploadedFromAPI){
@@ -196,7 +186,7 @@ public class StreamUploaderProxy extends HttpServlet implements JsonErrorRespons
             log(message, e);
             writeErrorAsJson(res, HttpServletResponse.SC_NOT_FOUND, message);
         } catch (WcampNotAuthorizedException e){
-            String message = wcampDocument.getAuthToken()+" is not authorized to "+wcampDocument.getNeededPerm();
+            String message = wcampDocument.getAuthToken()+" is not authorized to perform the operation";
             log(message, e);
             writeErrorAsJson(res, HttpServletResponse.SC_UNAUTHORIZED, message);
         } catch (ConnectException e) {
@@ -351,6 +341,7 @@ public class StreamUploaderProxy extends HttpServlet implements JsonErrorRespons
     public String getErrorNonce() {
         String errorNonce = null;
         try {
+            //TODO use a UUID
             SecureRandom sr = SecureRandom.getInstance(SHA1PRNG);
             errorNonce = Integer.toString(sr.nextInt());
         } catch (NoSuchAlgorithmException e) {

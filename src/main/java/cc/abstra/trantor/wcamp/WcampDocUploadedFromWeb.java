@@ -6,21 +6,15 @@ import cc.abstra.trantor.wcamp.exceptions.MissingClientHeadersException;
 
 import java.io.IOException;
 
-public class WcampDocUploadedFromWeb extends WcampDocumentResource implements WorklistResource {
-
-    //TODO: move NEEDED_PER to each Interface if finer-grained auth is required
-    public static final String NEEDED_PERM ="upload_doc";
+public class WcampDocUploadedFromWeb extends WcampDocumentResource implements WorklistResource, VersionedResource {
 
     public WcampDocUploadedFromWeb(String authToken, String docIdentifier, String uploadIdentifier)
             throws IOException, MissingClientHeadersException {
 
-        super(HttpHeaders.COOKIE, authToken, NEEDED_PERM, uploadIdentifier);
+        super(HttpHeaders.COOKIE, authToken, uploadIdentifier, docIdentifier);
 
         if (null != docIdentifier) {
-            this.id = docIdentifier;
-            if (VERSION.equals(uploadIdentifier)) {
-                verify(docIdentifier, RESOURCE_PATH);
-            } else {
+            if (!VERSION.equals(uploadIdentifier)) {
                 throw new MissingClientHeadersException(CustomHttpHeaders.X_TRANTOR_UPLOAD_TYPE);
             }
         }
@@ -34,18 +28,20 @@ public class WcampDocUploadedFromWeb extends WcampDocumentResource implements Wo
     }
 
     @Override
-    public void addVersion(String filesInfo) throws IOException {
-        if(VERSION.equals(uploadType)){
-            headers.put(CustomHttpHeaders.X_TRANTOR_UPLOADED_FILES_INFO, filesInfo);
-            restRequest(WCAMP_URI + RESOURCE_PATH + id + VERSION_CMD, HttpMethods.PUT);
-        } else {
-            throw new UnsupportedOperationException("Cannot verify version identifier for non-versioned docs");
-        }
+    public void removeFromWorklist(String docId) {
+        throw new UnsupportedOperationException("Not yet implemented");
     }
 
     @Override
-    public void removeFromWorklist(String docId) {
-        throw new UnsupportedOperationException("Not yet implemented");
+    public void addVersion(String filesInfo) throws IOException {
+        verify(docId, DOCUMENTS_RESOURCE_PATH);
+        authorize(VersionedResource.NEEDED_PERM);
+        if(VERSION.equals(uploadType)){
+            headers.put(CustomHttpHeaders.X_TRANTOR_UPLOADED_FILES_INFO, filesInfo);
+            restRequest(WCAMP_URI + DOCUMENTS_RESOURCE_PATH + docId + VERSION_CMD, HttpMethods.PUT);
+        } else {
+            throw new UnsupportedOperationException("Cannot verify version identifier for non-versioned docs");
+        }
     }
 
 }

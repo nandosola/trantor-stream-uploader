@@ -28,34 +28,34 @@ import java.util.HashMap;
 import java.util.Map;
 
 /** This class interacts with Trantor's metadata front-end API, internally known as WCAMP */
-public abstract class WcampDocumentResource implements AuthorizedResource, VersionedResource {
+public abstract class WcampDocumentResource implements AuthorizedResource {
 
     protected static final String WCAMP_URI = "http://localhost:8080";
     private static final int TEN_SEC = 10000;  //msec
     private static final String CHARSET = "UTF-8";
     private static final String APPLICATION_JSON = "application/json";
 
-    public static final String RESOURCE_PATH = "/documents/";
+    public static final String DOCUMENTS_RESOURCE_PATH = "/documents/";
 
     protected Map<String, String> headers = new HashMap<>();
+    protected String docId;
     protected String authToken;
-    protected String neededPerm;
-    protected String id;
     protected String uploadType;
 
-    protected WcampDocumentResource(String headerName, String token, String neededPerm, String uploadIdentifier)
+    protected WcampDocumentResource(String headerName, String token, String uploadIdentifier, String docIdentifier)
             throws MissingClientHeadersException, IOException {
+
+        this.docId = docIdentifier;
 
         if (null != token) {
             this.authToken = token;
-            this.neededPerm = neededPerm;
             headers.put(headerName, authToken);
             // Our OAuth provider will send 403 to API clients, or else 302 to /login.html
             headers.put(HttpHeaders.ACCEPT, APPLICATION_JSON);
 
         } else {
             throw new MissingClientHeadersException(CustomHttpHeaders.X_TRANTOR_CLIENT_ID + ", " +
-                    CustomHttpHeaders.X_TRANTOR_ASSIGNED_UPLOAD_ID);
+                    HttpHeaders.AUTHORIZATION);
         }
 
         if (null != uploadIdentifier) {
@@ -63,12 +63,13 @@ public abstract class WcampDocumentResource implements AuthorizedResource, Versi
         }
     }
 
-    protected void verify(String id, String path) throws IOException {
+    @Override
+    public void verify(String id, String path) throws IOException {
         restRequest(WCAMP_URI + path + id, HttpMethods.HEAD);
     }
 
     @Override
-    public void authorize() throws IOException {
+    public void authorize(String neededPerm) throws IOException {
         restRequest(WCAMP_URI + PERMISSION + neededPerm, HttpMethods.GET);
     }
 
@@ -126,10 +127,6 @@ public abstract class WcampDocumentResource implements AuthorizedResource, Versi
 
     public String getAuthToken() {
         return authToken;
-    }
-
-    public String getNeededPerm() {
-        return neededPerm;
     }
 
     private void setUploadType(String type) {

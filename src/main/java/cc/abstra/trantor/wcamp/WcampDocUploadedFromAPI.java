@@ -7,37 +7,53 @@ import cc.abstra.trantor.wcamp.exceptions.MissingClientHeadersException;
 import java.io.IOException;
 
 
-public class WcampDocUploadedFromAPI extends WcampDocumentResource implements ArchiveResource {
-
-    //TODO: move NEEDED_PER to each Interface if finer-grained auth is required
-    public static final String NEEDED_PERM ="upload_doc";
+public class WcampDocUploadedFromAPI extends WcampDocumentResource implements ArchivedResource, VersionedResource {
 
     private String clientId;
     private String tempDocId;
 
-    public WcampDocUploadedFromAPI(String authToken, String clientId, String tempDocId, String uploadIdentifier)
+    public WcampDocUploadedFromAPI(String authToken, String clientId, String tempDocId, String uploadIdentifier,
+                                   String docIdentifier)
             throws IOException, MissingClientHeadersException {
 
-        super(HttpHeaders.AUTHORIZATION, authToken, NEEDED_PERM, uploadIdentifier);
+        super(HttpHeaders.AUTHORIZATION, authToken, uploadIdentifier, docIdentifier);
 
-        if (null != clientId && null != tempDocId) {
+        if (null == clientId)
+            throw new MissingClientHeadersException(CustomHttpHeaders.X_TRANTOR_CLIENT_ID);
+
+        if (null != tempDocId) {  // upload document (version=0)
             this.clientId = clientId;
             this.tempDocId = tempDocId;
-            verify(tempDocId, TEMP_PATH);  //never call overridable methods in a constructor
         } else {
-            throw new MissingClientHeadersException(CustomHttpHeaders.X_TRANTOR_ASSIGNED_UPLOAD_ID);
+            if (!VersionedResource.VERSION.equals(uploadIdentifier)) {  // upload version (no new metadata)
+                throw new MissingClientHeadersException(CustomHttpHeaders.X_TRANTOR_UPLOAD_TYPE +
+                ", "+ CustomHttpHeaders.X_TRANTOR_DOCUMENT_ID);
+            }
         }
     }
 
-    @Override
-    public void addVersion(String filesInfo) throws IOException {
-        throw new UnsupportedOperationException("Not yet implemented");
+    public String getClientId() {
+        return clientId;
     }
 
     @Override
     public void archive(String fileInfo) throws IOException {
+        verify(tempDocId, ArchivedResource.TEMP_PATH);
+        authorize(ArchivedResource.NEEDED_PERM);
         this.headers.put(CustomHttpHeaders.X_TRANTOR_UPLOADED_FILES_INFO, fileInfo);
         this.headers.put(CustomHttpHeaders.X_TRANTOR_CLIENT_ID, clientId);
         restRequest(WCAMP_URI + TEMP_PATH + tempDocId + ARCHIVE_CMD, HttpMethods.PUT);
+    }
+
+    @Override
+    public void addVersion(String filesInfo) throws IOException {
+        verify(docId, DOCUMENTS_RESOURCE_PATH);
+        authorize(VersionedResource.NEEDED_PERM);
+        if(VERSION.equals(uploadType)){
+            headers.put(CustomHttpHeaders.X_TRANTOR_UPLOADED_FILES_INFO, filesInfo);
+            restRequest(WCAMP_URI + DOCUMENTS_RESOURCE_PATH + docId + VERSION_CMD, HttpMethods.PUT);
+        } else {
+            throw new UnsupportedOperationException("Cannot verify version identifier for non-versioned docs");
+        }
     }
 }

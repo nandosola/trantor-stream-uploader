@@ -6,6 +6,7 @@ public interface AuthorizedResource {
 
     public static final String PERMISSION = "/permission/";
 
-    public void authorize() throws IOException;
+    public abstract void authorize(String neededPerm) throws IOException;
+    public abstract void verify(String id, String path) throws IOException;
 
 }

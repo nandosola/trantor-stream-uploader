@@ -1,5 +1,6 @@
 package cc.abstra.trantor.asynctasks;
 
+import cc.abstra.trantor.wcamp.VersionedResource;
 import cc.abstra.trantor.wcamp.WcampDocumentResource;
 
 import javax.servlet.AsyncContext;
@@ -20,7 +21,7 @@ public class AddNewVersion implements Runnable {
     @Override
     public void run() {
         try {
-            versionedDoc.addVersion(filesInfo);
+            ((VersionedResource)versionedDoc).addVersion(filesInfo);
         } catch (IOException e) {
             e.printStackTrace();
         } finally {

@@ -18,6 +18,7 @@ package cc.abstra.trantor;
 import cc.abstra.trantor.wcamp.CustomHttpHeaders;
 import cc.abstra.trantor.wcamp.WcampDocUploadedFromAPI;
 import cc.abstra.trantor.wcamp.WcampDocUploadedFromWeb;
+import cc.abstra.trantor.wcamp.WcampDocumentResourceFactory;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Ignore;
@@ -50,7 +51,7 @@ import static org.powermock.api.mockito.PowerMockito.mock;
 import static org.powermock.api.mockito.PowerMockito.*;
 
 @RunWith(PowerMockRunner.class)
-@PrepareForTest({URL.class, StreamUploaderProxy.class})
+@PrepareForTest({URL.class, StreamUploaderProxy.class, WcampDocumentResourceFactory.class})
 // Adding the class under test to the @PrepareForTest ensures that the StreamUploaderProxy class
 // is loaded with the modified URL.class loaded provided by PowerMockito.
 public class StreamUploaderProxyTest {
@@ -68,8 +69,9 @@ public class StreamUploaderProxyTest {
     private OutputStream targetReqOutputStream;
     private MockServletInputStream clientRequestInputStream;
     private ServletOutputStream responseOutputStream;
-    private WcampDocUploadedFromWeb pendingDoc;
-    private WcampDocUploadedFromAPI tempDoc;
+    private WcampDocumentResourceFactory wcampDocFactory;
+    private WcampDocUploadedFromWeb docUploadedFromWeb;
+    private WcampDocUploadedFromAPI docUploadedFromAPI;
     private AsyncContext asyncCtx;
 
     @InjectMocks private StreamUploaderProxy uploadProxy = new StreamUploaderProxy();
@@ -115,8 +117,9 @@ public class StreamUploaderProxyTest {
         responseOutputStream = mock(ServletOutputStream.class);
 
         asyncCtx = mock(AsyncContext.class);
-        pendingDoc = mock(WcampDocUploadedFromWeb.class);
-        tempDoc = mock(WcampDocUploadedFromAPI.class);
+        mockStatic(WcampDocumentResourceFactory.class);
+        docUploadedFromWeb = mock(WcampDocUploadedFromWeb.class);
+        docUploadedFromAPI = mock(WcampDocUploadedFromAPI.class);
     }
 
     /* Mock a static method (for future reference):
@@ -128,7 +131,7 @@ public class StreamUploaderProxyTest {
      */
 
     // WARNING: PowerMock does not support Java 7exception multicatching
-    // https://code.google.com/p/powermock/issues/detail?id=427
+    // https://code.google.com/p/powermock/issues/detail?docId=427
 
     @After
     public void tearDown() throws Exception {
@@ -139,7 +142,8 @@ public class StreamUploaderProxyTest {
     public void testDoSuccessfulPostWithKnownContentLengthViaWebClient() throws Exception {
 
         whenNew(URL.class).withArguments(testUrl).thenReturn(targetUrl);
-        whenNew(WcampDocUploadedFromWeb.class).withArguments(anyString(), anyString(), anyString()).thenReturn(pendingDoc);
+
+        when(WcampDocumentResourceFactory.create(eq(request))).thenReturn(docUploadedFromWeb);
 
         when(request.getHeader(eq(HttpHeaders.COOKIE))).thenReturn(requestHeaders.get(HttpHeaders.COOKIE));
         when(targetUrl.openConnection()).thenReturn(urlConnection);
@@ -173,19 +177,18 @@ public class StreamUploaderProxyTest {
         uploadProxy.doPost(request, response);
 
         verifyNew(URL.class).withArguments(testUrl);  // injected dependency
-        verifyNew(WcampDocUploadedFromWeb.class).withArguments(eq(requestHeaders.get(HttpHeaders.COOKIE)), isNull(), isNull());
 
         // This won't work:
-        // See: https://code.google.com/p/powermock/issues/detail?id=297
+        // See: https://code.google.com/p/powermock/issues/detail?docId=297
         //verify(targetUrl).openConnection();
         verify(urlConnection).setDoOutput(true);  //  POST request
-        verify(pendingDoc, times(2)).getAuthToken();
+        verify(docUploadedFromWeb, times(1)).getAuthToken();
         verify(urlConnection).setReadTimeout(anyInt());  // just in case someone deletes it ;-)
 
         // verify proxyed request headers
         verify(urlConnection, times(1)).setRequestProperty(eq(HttpHeaders.X_REQUESTED_WITH), eq("MockedHttpRequest"));
         verify(urlConnection, never()).setRequestProperty(eq(HttpHeaders.CONNECTION), eq("keep-alive"));  //"hop-by-hop" header
-        verify(urlConnection, times(12)).setRequestProperty(anyString(),anyString());
+        verify(urlConnection, times(12)).setRequestProperty(anyString(), anyString());
 
         // verify setStreamingMode is set at proxyed request
         verify(request).getContentLength();
@@ -211,19 +214,19 @@ public class StreamUploaderProxyTest {
         // verify res.getOutputStream().write() <-- targetResponseIS (body & headers)
         verify(urlConnection).getInputStream();
         verify(response).getOutputStream();
-        verify(pendingDoc).addToWorklist(eq("c0ffeeb4b3/example 1 title; f00b4rb4z/title_example_2"));
+        verify(docUploadedFromWeb).addToWorklist(eq("c0ffeeb4b3/example 1 title; f00b4rb4z/title_example_2"));
 
         verify(responseOutputStream).write(aryEq(remoteResponseStr.getBytes()));
     }
 
     @Test
     @Ignore("TODO")
-    public void testDoSuccessfulPostWithUnknownContentLength() throws Exception {
+    public void testDoSuccessfulPostWithUnknownContentLengthViaWebClient() throws Exception {
     }
 
     @Test
     @Ignore("TODO")
-    public void testDoPostWithErrors() throws Exception {
+    public void testDoPostWithErrorsViaWebClient() throws Exception {
     }
 
     @Test
