@@ -8,5 +8,5 @@ public interface JsonErrorResponses {
     public static final String SHA1PRNG = "SHA1PRNG";
     
     public void writeErrorAsJson(HttpServletResponse response, int code, String msg);
-    public String getErrorNonce();
+    public String getErrorNonceFromResponse(HttpServletResponse response);
 }

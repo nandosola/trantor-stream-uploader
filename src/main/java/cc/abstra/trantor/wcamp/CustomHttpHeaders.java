@@ -38,6 +38,7 @@ public class CustomHttpHeaders {
     public static final String X_TRANTOR_UPLOAD_TYPE = "X-Trantor-Upload-Type";
     public static final String X_TRANTOR_UPLOAD_NAME = "X-Trantor-Upload-Name";
     public static final String X_TRANTOR_DOCUMENT_ID = "X-Trantor-Document-Id";
+    public static final String X_TRANTOR_ERROR_NONCE = "X-Trantor-Error-Nonce";
 
     public static final List<String> validUploadTypesLc;
     static {

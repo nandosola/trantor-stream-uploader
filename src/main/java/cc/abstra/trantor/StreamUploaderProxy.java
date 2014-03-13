@@ -32,11 +32,10 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.io.*;
 import java.net.*;
-import java.security.NoSuchAlgorithmException;
-import java.security.SecureRandom;
 import java.util.Enumeration;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 
 public class StreamUploaderProxy extends HttpServlet implements JsonErrorResponses {
@@ -85,6 +84,21 @@ public class StreamUploaderProxy extends HttpServlet implements JsonErrorRespons
         } else {
             System.out.println(msg);
         }
+    }
+
+    private void logException(HttpServletResponse response, String msg, Exception ex) {
+        String nonce = UUID.randomUUID().toString();
+        String clientMessage = "Please review stream-uploader logs for code "+ nonce;
+        writeErrorAsJson(response, HttpServletResponse.SC_INTERNAL_SERVER_ERROR, clientMessage);
+
+        StringWriter sw = new StringWriter();
+        ex.printStackTrace(new PrintWriter(sw));
+        String exceptionDetails = sw.toString();
+
+        log("Error nonce:" + nonce + ", Message: " + msg +
+                "\nException:" + ex.getClass().toString() + ", Message" + ex.getMessage() +
+                "\nStack trace: \n" + exceptionDetails
+        );
     }
 
     @Override
@@ -220,24 +234,18 @@ public class StreamUploaderProxy extends HttpServlet implements JsonErrorRespons
                         copyResponseHeaders(targetConnection, res, errBytes.length);
                         res.getOutputStream().write(errBytes);
                     } else {
-                        String nonce = getErrorNonce();
-                        String message = "Please review the logs for code "+ nonce;
-                        log("---- Begin ErrorMessage for error code "+nonce+"\nReceived unexpected response status "
-                                +responseStatus+" from POST "+targetUrl.toString());
+                        String nonce = getErrorNonceFromResponse(res);
+                        String message = "Please review fileserver logs for code "+ nonce;
                         writeErrorAsJson(res, HttpServletResponse.SC_BAD_GATEWAY, message);
                     }
                 } catch (IOException e1) {
-                    logServerErrorWithNonce(res);
-                    log("Exception occurred while catching IOException", e);
-                    log("Caused by", e);
+                    logException(res, "Exception occurred while catching IOException", e);
                 }
             } else {
-                logServerErrorWithNonce(res);
-                log("Exception", e);
+                logException(res, "targetConnection is null", e);
             }
         } catch (RuntimeException e){
-            logServerErrorWithNonce(res);
-            log("Exception", e);
+            logException(res, "Caught RuntimeException", e);
         }
     }
 
@@ -332,29 +340,13 @@ public class StreamUploaderProxy extends HttpServlet implements JsonErrorRespons
         try {
             response.getWriter().write("{\"msg\":\"" + msg + "\"}");
         } catch (IOException e) {
-            log("Could not write response!!");
-            e.printStackTrace();
+            logException(response, "Could not write response!!", e);
         }
     }
 
     @Override
-    public String getErrorNonce() {
-        String errorNonce = null;
-        try {
-            //TODO use a UUID
-            SecureRandom sr = SecureRandom.getInstance(SHA1PRNG);
-            errorNonce = Integer.toString(sr.nextInt());
-        } catch (NoSuchAlgorithmException e) {
-            log("getErrorNonce: Algorithm "+SHA1PRNG+"is not valid!");
-            e.printStackTrace();
-        }
+    public String getErrorNonceFromResponse(HttpServletResponse response) {
+        String errorNonce = response.getHeader(CustomHttpHeaders.X_TRANTOR_ERROR_NONCE);
         return errorNonce;
-    }
-
-    private void logServerErrorWithNonce(HttpServletResponse res) {
-        String nonce = getErrorNonce();
-        String message = "Please review the logs for code "+ nonce;
-        writeErrorAsJson(res, HttpServletResponse.SC_INTERNAL_SERVER_ERROR, message);
-        log("---- Begin StackTrace for error code "+nonce);
     }
 }
