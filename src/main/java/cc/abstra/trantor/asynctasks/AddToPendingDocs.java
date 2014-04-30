@@ -4,8 +4,9 @@ import cc.abstra.trantor.wcamp.WcampDocUploadedFromWeb;
 
 import javax.servlet.AsyncContext;
 import java.io.IOException;
+import java.util.concurrent.Callable;
 
-public class AddToPendingDocs implements Runnable {
+public class AddToPendingDocs implements Callable {
 
     private AsyncContext ac;
     private final WcampDocUploadedFromWeb pendingDoc;
@@ -18,13 +19,16 @@ public class AddToPendingDocs implements Runnable {
     }
 
     @Override
-    public void run() {
+    public TaskResult call() {
+        boolean success = true;
         try {
             pendingDoc.addToWorklist(filesInfo);
         } catch (IOException e) {
-            e.printStackTrace();
+            success = false;
         } finally {
             ac.complete();
         }
+
+        return TaskResult.generate(success);
     }
 }

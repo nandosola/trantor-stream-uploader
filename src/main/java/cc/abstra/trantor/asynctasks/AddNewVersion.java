@@ -5,8 +5,9 @@ import cc.abstra.trantor.wcamp.WcampDocumentResource;
 
 import javax.servlet.AsyncContext;
 import java.io.IOException;
+import java.util.concurrent.Callable;
 
-public class AddNewVersion implements Runnable {
+public class AddNewVersion implements Callable {
 
     private AsyncContext ac;
     private final WcampDocumentResource versionedDoc;
@@ -16,16 +17,19 @@ public class AddNewVersion implements Runnable {
         this.ac = ac;
         this.versionedDoc = pendingDoc;
         this.filesInfo = filesInfo;
+
     }
 
     @Override
-    public void run() {
+    public TaskResult call() {
+        boolean success = true;
         try {
             ((VersionedResource)versionedDoc).addVersion(filesInfo);
         } catch (IOException e) {
-            e.printStackTrace();
+            success = false;
         } finally {
             ac.complete();
         }
+        return TaskResult.generate(success);
     }
 }

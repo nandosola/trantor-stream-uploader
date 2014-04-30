@@ -16,11 +16,9 @@
 
 package cc.abstra.trantor;
 
-import cc.abstra.trantor.asynctasks.AddNewVersion;
-import cc.abstra.trantor.asynctasks.AddToPendingDocs;
-import cc.abstra.trantor.asynctasks.ArchiveTempDoc;
-import cc.abstra.trantor.asynctasks.TrantorAsyncListener;
+import cc.abstra.trantor.asynctasks.*;
 import cc.abstra.trantor.exceptions.EvilHeaderException;
+import cc.abstra.trantor.exceptions.UnknownExecutionResponseException;
 import cc.abstra.trantor.wcamp.*;
 import cc.abstra.trantor.wcamp.exceptions.MissingClientHeadersException;
 import cc.abstra.trantor.wcamp.exceptions.DocumentNotFoundException;
@@ -36,6 +34,8 @@ import java.util.Enumeration;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Future;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 
 public class StreamUploaderProxy extends HttpServlet implements JsonErrorResponses {
@@ -167,22 +167,47 @@ public class StreamUploaderProxy extends HttpServlet implements JsonErrorRespons
 
                 AsyncContext ac = req.startAsync();
                 ac.addListener(new TrantorAsyncListener());
+                Future<?> f;
 
-                //TODO use futures to assure a more robust error handling
                 if (VersionedResource.VERSION.equals(wcampDocument.getUploadType())){
-                    executor.execute(new AddNewVersion(ac, wcampDocument, trantorUploadedFilesInfo));
+                    f = executor.submit(new AddNewVersion(ac, wcampDocument, trantorUploadedFilesInfo));
                 } else {
                     if (wcampDocument instanceof WcampDocUploadedFromAPI){
-                        executor.execute(new ArchiveTempDoc(ac, (WcampDocUploadedFromAPI)wcampDocument,
+                        f = executor.submit(new ArchiveTempDoc(ac, (WcampDocUploadedFromAPI) wcampDocument,
                                 trantorUploadedFilesInfo));
                     } else {
-                        executor.execute(new AddToPendingDocs(ac, (WcampDocUploadedFromWeb)wcampDocument,
+                        f = executor.submit(new AddToPendingDocs(ac, (WcampDocUploadedFromWeb) wcampDocument,
                                 trantorUploadedFilesInfo));
                     }
                 }
 
-                res.getOutputStream().write(outBytes);
+                Object taskResult = f.get();
+                if (taskResult instanceof TaskResult.FailureResult) {
+                    String message = "Execution failed";
+                    log(message);
+                    writeErrorAsJson(res, HttpServletResponse.SC_INTERNAL_SERVER_ERROR, message);
+                } else {
+                    if (taskResult instanceof TaskResult.SuccessResult) {
+                        res.getOutputStream().write(outBytes);
+                    } else {
+                        throw new UnknownExecutionResponseException();
+                    }
+                }
             }
+
+        } catch (InterruptedException e) {
+            String message = e.getMessage();
+            log(message, e);
+            writeErrorAsJson(res, HttpServletResponse.SC_INTERNAL_SERVER_ERROR, message);
+        } catch (ExecutionException e) {
+            String message = e.getMessage();
+            log(message, e);
+            writeErrorAsJson(res, HttpServletResponse.SC_INTERNAL_SERVER_ERROR, message);
+        }
+        catch (UnknownExecutionResponseException e) {
+            String message = e.getMessage();
+            log(message, e);
+            writeErrorAsJson(res, HttpServletResponse.SC_INTERNAL_SERVER_ERROR, message);
         } catch (UnsupportedOperationException e) {
             String message = e.getMessage();
             log(message, e);
@@ -200,7 +225,8 @@ public class StreamUploaderProxy extends HttpServlet implements JsonErrorRespons
             log(message, e);
             writeErrorAsJson(res, HttpServletResponse.SC_NOT_FOUND, message);
         } catch (WcampNotAuthorizedException e){
-            String message = wcampDocument.getAuthToken()+" is not authorized to perform the operation";
+            String authToken = ((null == wcampDocument) ? "UNKNOWN" : wcampDocument.getAuthToken());
+            String message = authToken+" is not authorized to perform the operation";
             log(message, e);
             writeErrorAsJson(res, HttpServletResponse.SC_UNAUTHORIZED, message);
         } catch (ConnectException e) {
@@ -346,7 +372,6 @@ public class StreamUploaderProxy extends HttpServlet implements JsonErrorRespons
 
     @Override
     public String getErrorNonceFromResponse(HttpServletResponse response) {
-        String errorNonce = response.getHeader(CustomHttpHeaders.X_TRANTOR_ERROR_NONCE);
-        return errorNonce;
+        return response.getHeader(CustomHttpHeaders.X_TRANTOR_ERROR_NONCE);
     }
 }

@@ -4,8 +4,9 @@ import cc.abstra.trantor.wcamp.WcampDocUploadedFromAPI;
 
 import javax.servlet.AsyncContext;
 import java.io.IOException;
+import java.util.concurrent.Callable;
 
-public class ArchiveTempDoc implements Runnable {
+public class ArchiveTempDoc implements Callable {
 
     private AsyncContext ac;
     private final WcampDocUploadedFromAPI tempDocument;
@@ -18,13 +19,16 @@ public class ArchiveTempDoc implements Runnable {
     }
 
     @Override
-    public void run() {
+    public TaskResult call() {
+        boolean success = true;
         try {
             tempDocument.archive(filesInfo);
         } catch (IOException e) {
-            e.printStackTrace();
+            success = false;
         } finally {
             ac.complete();
         }
+
+        return TaskResult.generate(success);
     }
 }
